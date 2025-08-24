@@ -1,0 +1,32 @@
+# Versión recomendada de docker-compose.yml
+
+# Asignamos un nombre al proyecto para evitar colisiones con otros proyectos.
+name: "agentes"
+
+services:
+  chat_app:
+    build:
+      context: .
+      # Corregido: Apunta a tu archivo "dockerfile" (en minúsculas).
+      dockerfile: dockerfile
+    image: chat-python-uv:latest
+    container_name: chat_python
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    env_file:
+      # Carga las variables de entorno desde un archivo .env.
+      # ¡Asegúrate de crear este archivo en la raíz de tu proyecto!
+      - .env
+    volumes:
+      # Persiste la base de datos en una carpeta local `./data`.
+      # Docker creará la carpeta si no existe.
+      - ./data:/app/data
+    healthcheck:
+      # (Mejora) Docker verificará que Streamlit esté respondiendo
+      # correctamente antes de marcar el contenedor como "saludable".
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

@@ -1,0 +1,32 @@
+# Entornos y caches
+.venv/
+**/__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Datos/artefactos locales
+data/
+*.db
+*.sqlite
+*.log
+# Descomenta si no quieres versionar exports
+# *.pdf
+# *.md
+
+# Config y secretos
+.env
+.env.*
+*.key
+*.pem
+
+# SO/editores
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Docker
+# Evita añadir archivos de imagenes locales o tar
+*.tar
+*.img

@@ -1,0 +1,30 @@
+.env
+.env.*
+
+# VCS y metadatos
+.git
+.gitignore
+
+# Entornos y caches
+.venv/
+**/__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Datos/artefactos locales
+data/
+*.db
+*.sqlite
+*.log
+
+# Claves y certificados
+*.key
+*.pem
+
+# SO/editores
+.DS_Store
+Thumbs.db
+.vscode/
+*.db

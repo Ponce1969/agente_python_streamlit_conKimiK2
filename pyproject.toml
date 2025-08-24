@@ -1,0 +1,56 @@
+[project]
+name = "agentes"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "streamlit==1.37.0",
+    "groq==0.9.0",
+    "python-dotenv==1.0.1",
+    "reportlab",
+    "httpx==0.27.0",
+    "pypdf",
+]
+
+[tool.ruff]
+# Objetivo: Python 3.12, ancho de línea razonable para este proyecto
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# Conjuntos de reglas útiles: E,F (pyflakes/pycodestyle), I (isort), B (bugbear),
+# UP (pyupgrade), S (seguridad), C90 (mccabe: complejidad), PERF (performance)
+select = ["E", "F", "I", "B", "UP", "S", "C90", "PERF"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint.per-file-ignores]
+# Ejemplo: permitir prints en scripts Streamlit
+"main.py" = ["T201"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+no_implicit_optional = true
+check_untyped_defs = true
+ignore_missing_imports = true
+pretty = true
+show_error_codes = true
+
+[tool.uv]
+# Dependencias de desarrollo que instalaremos con `uv add --dev`
+dev-dependencies = [
+  "ruff>=0.5.0",
+  "mypy>=1.10",
+]

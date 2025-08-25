@@ -5,6 +5,9 @@
 .git
 .gitignore
 
+# scripts de hash
+generate_hash.py
+
 # Entornos y caches
 .venv/
 **/__pycache__/

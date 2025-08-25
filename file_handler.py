@@ -51,56 +51,51 @@ class FileProcessor:
         return extension in SUPPORTED_EXTENSIONS
 
     @staticmethod
+    def _read_text_file(file_bytes: bytes) -> str:
+        """Intenta leer un archivo de texto con UTF-8 y recurre a Latin-1 si falla."""
+        try:
+            return file_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.warning("Fallo al decodificar con UTF-8, intentando con Latin-1.")
+            return file_bytes.decode("latin-1")
+
+    @staticmethod
     def extract_text_from_file(
         uploaded_file: st.runtime.uploaded_file_manager.UploadedFile,
     ) -> tuple[str | None, str | None]:
         """
-        Extrae texto de un archivo según su tipo.
+        Extrae texto de un archivo según su tipo, con manejo robusto de codificación.
 
         Args:
-            uploaded_file: Archivo subido desde Streamlit
+            uploaded_file: Archivo subido desde Streamlit.
 
         Returns:
-            Tupla (contenido, error_mensaje)
+            Tupla (contenido, error_mensaje).
         """
         file_name = uploaded_file.name
         file_extension = file_name.split(".")[-1].lower()
+        file_bytes = uploaded_file.getvalue()
 
         try:
             if file_extension in ["py", "txt", "md", "csv"]:
-                content = uploaded_file.getvalue().decode("utf-8")
+                content = FileProcessor._read_text_file(file_bytes)
                 return content, None
 
             elif file_extension == "pdf":
-                pdf_bytes = BytesIO(uploaded_file.getvalue())
-                pdf_reader = PdfReader(pdf_bytes)
+                pdf_reader = PdfReader(BytesIO(file_bytes))
+                if not pdf_reader.pages:
+                    return None, "El PDF está vacío o corrupto."
 
-                # Validar que el PDF tenga páginas
-                if len(pdf_reader.pages) == 0:
-                    return None, "El PDF está vacío"
-
-                # Extraer texto de todas las páginas
                 content = "\n".join(page.extract_text() or "" for page in pdf_reader.pages).strip()
-
                 if not content:
-                    return None, "No se pudo extraer texto del PDF"
-
+                    return None, "No se pudo extraer texto del PDF (podría ser una imagen)."
                 return content, None
 
-            else:
-                return None, f"Extensión de archivo no soportada: .{file_extension}"
+            return None, f"Extensión de archivo no soportada: .{file_extension}"
 
-        except UnicodeDecodeError:
-            return (
-                None,
-                (
-                    f"Error de codificación en el archivo '{file_name}'. "
-                    f"Asegúrate de que esté en UTF-8"
-                ),
-            )
         except Exception as e:
-            logger.error(f"Error procesando archivo {file_name}: {e}")
-            return None, f"Error procesando el archivo '{file_name}': {str(e)}"
+            logger.error(f"Error crítico procesando archivo {file_name}: {e}", exc_info=True)
+            return None, f"Error inesperado al procesar '{file_name}'"
 
 
 def process_uploaded_file(

@@ -14,13 +14,17 @@ Asistente experto en Python 3.12+ con Streamlit y Groq (`moonshotai/kimi-k2-inst
 
 ## 📂 Estructura
 
-- `main.py`: UI de Streamlit, estado de sesión y flujo del chat. Sidebar con carga de archivos, exportación y mantenimiento.
-- `db.py`: Acceso a SQLite (`init_db`, `save_message`, `load_messages`, `purge_old_messages`, `delete_all_messages`).
-- `export.py`: Exportación a PDF/Markdown.
-- `file_handler.py`: Procesamiento de archivos subidos.
-- `utils.py`: Seguridad, validación de entorno, rate limiter.
-- `docker-compose.yml`, `dockerfile`: Contenerización.
-- `.env`: Variables de configuración (no se comitea).
+- `main.py`: Punto de entrada de la aplicación. Orquesta la inicialización, autenticación y renderizado de la UI.
+- `config.py`: Centraliza toda la configuración de la aplicación usando Pydantic-settings, cargando desde `.env`.
+- `ui_components.py`: Contiene los componentes de la interfaz de usuario de Streamlit (`render_sidebar`, `render_chat_interface`).
+- `llm_handler.py`: Gestiona toda la lógica de interacción con la API de Groq (LLM).
+- `styles.py`: Define los estilos CSS para los temas claro y oscuro de la aplicación.
+- `db.py`: Módulo de acceso a la base de datos SQLite.
+- `export.py`: Lógica para exportar el historial del chat a Markdown y PDF.
+- `file_handler.py`: Maneja la carga y procesamiento de archivos.
+- `utils.py`: Contiene utilidades de seguridad (hashing, verificación) y el limitador de intentos (rate limiter).
+- `docker-compose.yml`, `dockerfile`: Archivos para la contenerización con Docker.
+- `.env`: Almacena las variables de entorno y secretos (no incluido en el control de versiones).
 
 ## 🛠️ Stack
 
@@ -33,14 +37,17 @@ Requisitos: Docker y Docker Compose.
 1) Crea `.env` en la raíz con al menos:
 
 ```env
-GROQ_API_KEY=tu_api_key_de_groq
-MASTER_PASSWORD=tu_contraseña_maestra
-DB_BACKEND=sqlite
+# Credenciales obligatorias
+GROQ_API_KEY="tu_api_key_de_groq"
+MASTER_PASSWORD="tu_contraseña_maestra"
 
-# Control de contexto (opcional, recomendado)
-CONVERSATION_WINDOW_MESSAGES=12
-FILE_CONTEXT_MAX_CHARS=6000
-MESSAGES_MAX_CHARS=10000
+# Opcionales (valores por defecto mostrados)
+GROQ_MODEL_NAME="moonshotai/kimi-k2-instruct"  # puedes cambiarlo por otro modelo de Groq
+DB_PATH="db/chat_history.db"
+CONVERSATION_WINDOW_MESSAGES=20
+DISPLAY_WINDOW_MESSAGES=12
+FILE_CONTEXT_MAX_CHARS=8000
+MESSAGES_MAX_CHARS=12000
 ```
 
 2) Ejecuta:
@@ -51,47 +58,6 @@ docker compose up --build -d
 
 Abre http://localhost:8501 y usa la contraseña maestra.
 
-### Ejemplos de archivos .env por entorno
-
-Puedes mantener dos archivos y elegir cuál usar en despliegue. Por defecto, `load_dotenv()` carga `.env`.
-
-- Para desarrollo: usa `.env.development` y copia a `.env` cuando ejecutes local.
-- Para producción: usa `.env.production` y monta/inyecta como `.env` en el contenedor (o variables de entorno del orquestador).
-
-Ejemplo desarrollo (`.env.development`):
-
-```env
-GROQ_API_KEY=api_key_de_pruebas_o_entorno_sandbox
-MASTER_PASSWORD=dev_password_segura
-DB_BACKEND=sqlite
-
-CONVERSATION_WINDOW_MESSAGES=12
-FILE_CONTEXT_MAX_CHARS=6000
-MESSAGES_MAX_CHARS=10000
-
-# Verbosidad útil en dev (opcional, si la app lo soporta)
-LOG_LEVEL=INFO
-```
-
-Ejemplo producción (`.env.production`):
-
-```env
-GROQ_API_KEY=${GROQ_API_KEY}
-MASTER_PASSWORD=${MASTER_PASSWORD}
-DB_BACKEND=sqlite
-
-# Límites un poco más conservadores para reducir costos/errores
-CONVERSATION_WINDOW_MESSAGES=10
-FILE_CONTEXT_MAX_CHARS=5000
-MESSAGES_MAX_CHARS=9000
-
-# Menos verboso en prod
-LOG_LEVEL=WARNING
-```
-
-Sugerencias:
-- En producción, no subas `.env.production`; usa secretos del orquestador (Docker/Compose `env_file`, GitHub Actions, Kubernetes Secrets, etc.).
-- Si quieres que `python-dotenv` cargue un archivo distinto a `.env`, renombra/gestiona el archivo antes de ejecutar o pasa variables directamente al contenedor.
 
 ## 🧰 Uso
 
@@ -123,7 +89,7 @@ Notas: algunas cadenas largas están partidas (E501). `render_chat_interface()` 
 
 ## 🗃️ Base de datos
 
-Archivo SQLite en `data/chat.db` (mapeado en Docker). Funciones en `db.py` para crear tablas/índices, guardar/cargar mensajes, purgar por fecha y borrar todo el historial.
+Archivo SQLite en `db/chat_history.db` (mapeado en Docker). Las funciones en `db.py` se encargan de crear tablas/índices, guardar/cargar mensajes, purgar por fecha y borrar todo el historial.
 
 ## 🧯 Troubleshooting
 

@@ -12,17 +12,18 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Any
 
-# Configurar logger del módulo
+from config import settings
+
+# ------------------------------------------------------------------
+# 1. Configuración
+# ------------------------------------------------------------------
 logger = logging.getLogger(__name__)
 
-# La ruta a la base de datos se define en el Dockerfile,
-# pero es bueno tener un fallback para desarrollo local.
-DATA_DIR = "/app/data"
-DB_PATH = os.path.join(DATA_DIR, "chat.db")
-
+DB_PATH = settings.db_path
+DB_DIR = os.path.dirname(DB_PATH)
 
 @contextmanager
-def get_db_connection() -> Iterator[sqlite3.Connection]:
+def get_db_connection(db_path: str = DB_PATH) -> Iterator[sqlite3.Connection]:
     """
     Context manager para conexiones de base de datos.
 
@@ -31,9 +32,9 @@ def get_db_connection() -> Iterator[sqlite3.Connection]:
     """
     conn = None
     try:
-        os.makedirs(DATA_DIR, exist_ok=True)
+        os.makedirs(DB_DIR, exist_ok=True)
         conn = sqlite3.connect(
-            DB_PATH,
+            db_path,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             timeout=30.0,  # Timeout para evitar bloqueos
         )
@@ -52,7 +53,7 @@ def get_db_connection() -> Iterator[sqlite3.Connection]:
             conn.close()
 
 
-def init_db() -> None:
+def init_db(db_path: str = DB_PATH) -> None:
     """
     Inicializa la base de datos y crea las tablas e índices necesarios.
     """

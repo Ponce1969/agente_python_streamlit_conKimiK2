@@ -2,12 +2,11 @@
 Utilidades de seguridad y validación para el agente Python.
 """
 
-import hashlib
 import logging
-import os
 import secrets
 from functools import lru_cache
-from typing import Any
+
+import bcrypt
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -19,53 +18,29 @@ class SecurityUtils:
 
     @staticmethod
     def hash_password(password: str) -> str:
-        """Genera hash seguro de contraseña."""
-        return hashlib.sha256(password.encode()).hexdigest()
+        """Genera un hash de la contraseña usando bcrypt."""
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+        return hashed.decode("utf-8")  # type: ignore
 
     @staticmethod
-    def verify_password(password: str, hashed: str) -> bool:
-        """Verifica contraseña contra hash."""
-        return SecurityUtils.hash_password(password) == hashed
+    def is_password_valid(password: str, hashed_password: str) -> bool:
+        """Verifica si una contraseña coincide con su hash."""
+        try:
+            return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))  # type: ignore
+        except (ValueError, TypeError):
+            return False
+
+    @staticmethod
+    @lru_cache(maxsize=128)
+    def verify_password(password: str, hashed_password: str) -> bool:
+        """Wrapper con cache para verificar contraseñas."""
+        return SecurityUtils.is_password_valid(password, hashed_password)
 
     @staticmethod
     def generate_session_token() -> str:
         """Genera token de sesión seguro."""
         return secrets.token_urlsafe(32)
-
-
-class EnvValidator:
-    """Validador de variables de entorno."""
-
-    REQUIRED_VARS = ["GROQ_API_KEY", "MASTER_PASSWORD"]
-
-    @classmethod
-    def validate_env(cls) -> dict[str, Any]:
-        """Valida que todas las variables requeridas existan."""
-        missing = []
-        config = {}
-
-        for var in cls.REQUIRED_VARS:
-            value = os.getenv(var)
-            if not value:
-                missing.append(var)
-            else:
-                config[var] = value
-
-        if missing:
-            raise ValueError(f"Variables de entorno faltantes: {', '.join(missing)}")
-
-        return config
-
-    @classmethod
-    def get_secure_config(cls) -> dict[str, Any]:
-        """Obtiene configuración validada y segura."""
-        config = cls.validate_env()
-
-        # Hash de contraseña para almacenamiento seguro
-        config["MASTER_PASSWORD_HASH"] = SecurityUtils.hash_password(config["MASTER_PASSWORD"])
-        del config["MASTER_PASSWORD"]  # No almacenar en texto plano
-
-        return config
 
 
 class RateLimiter:
@@ -108,3 +83,31 @@ def validate_file_size(file_size: int, max_size_mb: int = 5) -> bool:
     """Valida tamaño de archivo con caché."""
     max_bytes = max_size_mb * 1024 * 1024
     return file_size <= max_bytes
+
+
+def chunk_text(text: str, chunk_size: int) -> list[str]:
+    """Divide texto en trozos de tamaño máximo chunk_size.
+
+    Se intenta cortar en saltos de línea si es posible para mejorar legibilidad.
+    """
+    if chunk_size <= 0 or not text:
+        return [text] if text else []
+    chunks: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        end = min(i + chunk_size, n)
+        # buscar el último salto de línea antes de end para no cortar palabras/código
+        newline_pos = text.rfind("\n", i, end)
+        if newline_pos != -1 and newline_pos > i + int(0.6 * chunk_size):
+            end = newline_pos
+        chunks.append(text[i:end])
+        i = end
+    return chunks
+
+
+def estimate_tokens(text: str) -> int:
+    """Estimación simple de tokens (~4 chars/token)."""
+    if not text:
+        return 0
+    return max(1, len(text) // 4)

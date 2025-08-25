@@ -25,22 +25,24 @@ from utils import chunk_text
 
 
 def _render_theme_selector() -> None:
-    """Renderiza el selector de tema en la barra lateral."""
+    """Renderiza un toggle para cambiar entre tema claro y oscuro."""
     st.subheader("Tema")
 
-    def on_theme_change():
-        st.session_state.theme = st.session_state.theme_selector
+    # El valor inicial del toggle se basa en el estado actual del tema
+    is_dark_mode = st.session_state.get("theme", "light") == "dark"
 
-    st.radio(
-        "Elige un tema",
-        options=["light", "dark"],
-        key="theme_selector",
-        on_change=on_theme_change,
-        horizontal=True,
-        label_visibility="collapsed",
-        index=0 if st.session_state.get("theme", "light") == "light" else 1,
-        format_func=lambda x: f" {x.capitalize()}"
-    )
+    # Crear el toggle. Su estado (on/off) determinará el tema.
+    if st.toggle("Modo Oscuro", value=is_dark_mode, key="theme_toggle"):
+        # Si el toggle está activado, el tema es oscuro
+        if st.session_state.theme != "dark":
+            st.session_state.theme = "dark"
+            st.rerun()
+    else:
+        # Si el toggle está desactivado, el tema es claro
+        if st.session_state.theme != "light":
+            st.session_state.theme = "light"
+            st.rerun()
+
 
 def render_sidebar() -> None:
     """Renderiza la barra lateral con todas las opciones."""

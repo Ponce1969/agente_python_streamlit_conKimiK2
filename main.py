@@ -1,27 +1,43 @@
 # main.py
 import logging
-import os
 
 import streamlit as st
 from groq import Groq
 
 from config import settings
 
+# ------------------------------------------------------------------
+# 0. Configuración del Logging
+# ------------------------------------------------------------------
+def setup_logging():
+    """Configura el logging para toda la aplicación."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+
 # Módulos locales
-from db import init_db, purge_old_messages
+from db import init_db, purge_old_messages, purge_old_login_attempts
 from styles import apply_global_styles, apply_theme
-from ui_components import render_chat_interface, render_sidebar
-from utils import SecurityUtils, rate_limiter
+from llm_handler import get_groq_client
+from ui_components import render_chat_interface, render_sidebar, render_theme_selector
+from utils import SecurityUtils, get_client_ip, rate_limiter
 
 # ------------------------------------------------------------------
 # 1. Configuración de la página
 # ------------------------------------------------------------------
-st.set_page_config(
-    page_title="🤖 Agente Python 3.12+",
-    page_icon="🐍",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+try:
+    st.set_page_config(
+        page_title="🤖 Agente Python 3.12+",
+        page_icon="🐍",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
+except st.errors.StreamlitAPIException as e:
+    logger.error(f"Error al configurar la página de Streamlit: {e}")
+    # Continuar es seguro, pero la configuración de la página puede no aplicarse.
 
 # Logger del módulo
 logger = logging.getLogger(__name__)
@@ -33,60 +49,66 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 def initialize_session_state() -> None:
     """Inicializa el estado de la sesión de Streamlit."""
-    # Diccionario con los valores por defecto para el estado de la sesión
+    if "client_ip" not in st.session_state:
+        st.session_state.client_ip = get_client_ip()
+
     defaults = {
-        "client": lambda: Groq(api_key=settings.groq_api_key),
+        "auth": False,
         "messages": [],
+        "thread_id": None,
+        "assistant_id": None,
+        "run_id": None,
+        "file_tokens_limit": settings.file_context_max_tokens,
+        "theme": "light",  # Valor por defecto, se actualizará con JS
         "file_context": None,
         "file_context_full": None,
         "file_chunks": None,
         "file_chunk_index": 0,
         "chunk_by_tokens": False,
-        "file_tokens_limit": int(os.getenv("FILE_CONTEXT_MAX_TOKENS", "2000")),
         "auto_advance_chunks": False,
-        "theme": "light",
-        "auth": False,
     }
-
     for key, value in defaults.items():
         if key not in st.session_state:
-            # Si el valor es una función (para inicialización lazy), la llamamos
-            st.session_state[key] = value() if callable(value) else value
-    if "auth" not in st.session_state:
-        st.session_state.auth = False
+            st.session_state[key] = value
+
+    # Inicializar cliente de Groq con manejo de errores
+    if "client" not in st.session_state:
+        try:
+            st.session_state.client = get_groq_client()
+        except Exception as e:
+            st.error(f"Error al inicializar el cliente de la API: {e}")
+            st.session_state.client = None
 
 
 # ------------------------------------------------------------------
 # 4. Autenticación
 # ------------------------------------------------------------------
 def handle_authentication() -> bool:
-    """Maneja la autenticación con seguridad mejorada."""
+    """Maneja la autenticación del usuario."""
+    client_ip = st.session_state.client_ip
+
     if st.session_state.get("auth", False):
         return True
 
-    client_ip = st.session_state.get("client_ip", "unknown")
-
     if not rate_limiter.is_allowed(client_ip):
-        st.error("Demasiados intentos fallidos. Por favor, espera 15 minutos.")
+        st.error("Demasiados intentos de inicio de sesión. Inténtalo de nuevo más tarde.")
         return False
 
-    st.title("🔐 Autenticación Requerida")
-    st.warning("Introduce la contraseña maestra para continuar.")
-    password = st.text_input("Contraseña", type="password", key="password_input")
+    st.warning("Por favor, introduce la contraseña para continuar.")
+    password = st.text_input("Contraseña:", type="password")
 
-    if st.button("Acceder", key="login_button"):
-        if SecurityUtils.verify_password(password, settings.master_password_hash):
+    if st.button("Iniciar sesión"):
+        # Verificar la contraseña solo si se ingresa algo
+        if password and SecurityUtils.verify_password(password, settings.master_password_hash):
             st.session_state.auth = True
             st.rerun()
         else:
+            st.session_state.auth = False
             rate_limiter.record_attempt(client_ip)
-            attempts = len(rate_limiter.attempts.get(client_ip, []))
-            attempts_left = rate_limiter.max_attempts - attempts
-            st.error(f"Contraseña incorrecta. Quedan {attempts_left} intentos.")
-    
-    return False
+            st.error("Contraseña incorrecta.")
+            # No hacer rerun aquí para que el mensaje de error permanezca visible
 
-
+    return st.session_state.get("auth", False)
 
 
 # ------------------------------------------------------------------
@@ -97,13 +119,27 @@ def main() -> None:
     apply_global_styles()
     initialize_session_state()
 
-    if handle_authentication():
-        apply_theme()
-        render_sidebar()
-        render_chat_interface()
+    # La autenticación es bloqueante. Si no es exitosa, se detiene la ejecución.
+    if not handle_authentication():
+        st.stop()
+
+    # El resto de la app solo se renderiza si la autenticación es exitosa
+    render_theme_selector()  # Primero el selector para que el estado se actualice
+    apply_theme()  # Luego se aplica el tema basado en el estado
+    render_sidebar()
+    render_chat_interface()
 
 
 if __name__ == "__main__":
-    init_db(settings.db_path)
-    purge_old_messages(days=settings.purge_db_days)
+    setup_logging()
+    try:
+        init_db(settings.db_path)
+        # Purga de datos de mantenimiento
+        purge_old_messages(days=settings.purge_db_days)
+        purge_old_login_attempts(days=7)  # Limpia logs de intentos de login antiguos
+    except Exception as e:
+        logger.critical(f"No se pudo inicializar o purgar la base de datos: {e}")
+        # Dependiendo de la criticidad, podrías querer salir o mostrar un error
+        st.error(f"Error crítico de la base de datos: {e}. La aplicación puede no funcionar.")
+
     main()

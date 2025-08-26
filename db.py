@@ -89,12 +89,56 @@ def init_db(db_path: str = DB_PATH) -> None:
                 )
             """)
 
+            # Crear tabla de intentos de login
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS login_attempts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    identifier TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_login_attempts_identifier_timestamp
+                ON login_attempts(identifier, timestamp DESC)
+            """)
+
             conn.commit()
             logger.info("Base de datos inicializada exitosamente")
 
     except sqlite3.Error as e:
         logger.error(f"Error inicializando base de datos: {e}")
         raise
+
+
+def record_login_attempt(identifier: str) -> None:
+    """Registra un intento de inicio de sesión en la base de datos."""
+    with get_db_connection() as conn:
+        conn.execute("INSERT INTO login_attempts (identifier) VALUES (?)", (identifier,))
+        conn.commit()
+
+
+def count_recent_login_attempts(identifier: str, window_minutes: int) -> int:
+    """Cuenta los intentos de inicio de sesión recientes para un identificador."""
+    window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+    with get_db_connection() as conn:
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND timestamp > ?",
+            (identifier, window_start)
+        )
+        # Asegurarse de que fetchone() no devuelve None
+        result = cursor.fetchone()
+        count = result[0] if result else 0
+    return count
+
+
+def purge_old_login_attempts(days: int = 7) -> None:
+    """Elimina los registros de intentos de login más antiguos de 'days' días."""
+    if days <= 0:
+        return
+    purge_date = datetime.utcnow() - timedelta(days=days)
+    with get_db_connection() as conn:
+        conn.execute("DELETE FROM login_attempts WHERE timestamp < ?", (purge_date,))
+        conn.commit()
 
 
 def save_message(role: str, content: str) -> None:
@@ -176,7 +220,7 @@ def load_messages_between(start: datetime, end: datetime) -> list[dict[str, Any]
     return [{"role": row["role"], "content": row["content"]} for row in rows]
 
 
-def purge_old_messages(days: int = 30) -> None:
+def purge_old_messages(days: int) -> None:
     """
     Elimina los mensajes más antiguos de 'days' días de la base de datos.
     Esto es para mantenimiento y no afecta al contexto del chat activo.
@@ -184,10 +228,18 @@ def purge_old_messages(days: int = 30) -> None:
     Args:
         days: El umbral de días para eliminar mensajes.
     """
-    purge_date = datetime.utcnow() - timedelta(days=days)
-    with get_db_connection() as conn:
-        conn.execute("DELETE FROM messages WHERE timestamp < ?", (purge_date,))
-        conn.commit()
+    if not isinstance(days, int) or days <= 0:
+        logger.warning(f"Se intentó purgar mensajes con un valor de días no válido: {days}")
+        return
+
+    try:
+        purge_date = datetime.utcnow() - timedelta(days=days)
+        with get_db_connection() as conn:
+            cursor = conn.execute("DELETE FROM messages WHERE timestamp < ?", (purge_date,))
+            conn.commit()
+            logger.info(f"Se purgaron {cursor.rowcount} mensajes de más de {days} días.")
+    except sqlite3.Error as e:
+        logger.error(f"Error al purgar mensajes antiguos de la base de datos: {e}")
 
 
 def delete_all_messages() -> None:

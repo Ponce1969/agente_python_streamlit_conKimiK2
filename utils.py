@@ -7,6 +7,10 @@ import secrets
 from functools import lru_cache
 
 import bcrypt
+import streamlit as st
+from streamlit.web.server.server import Server
+
+from db import count_recent_login_attempts, record_login_attempt
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -44,38 +48,45 @@ class SecurityUtils:
 
 
 class RateLimiter:
-    """Limitador de intentos para prevenir ataques de fuerza bruta."""
+    """Limitador de intentos persistente usando la base de datos."""
 
     def __init__(self, max_attempts: int = 5, window_minutes: int = 15):
         self.max_attempts = max_attempts
         self.window_minutes = window_minutes
-        self.attempts: dict[str, list[float]] = {}
 
     def is_allowed(self, identifier: str) -> bool:
-        """Verifica si un intento está permitido."""
-        import time
-
-        current_time = time.time()
-        window_start = current_time - (self.window_minutes * 60)
-
-        # Limpiar intentos antiguos
-        self.attempts[identifier] = [
-            timestamp for timestamp in self.attempts.get(identifier, []) if timestamp > window_start
-        ]
-
-        return len(self.attempts.get(identifier, [])) < self.max_attempts
+        """Verifica si un intento está permitido consultando la base de datos."""
+        if not identifier or identifier == "unknown":
+            return True  # No limitar si no hay identificador
+        
+        recent_attempts = count_recent_login_attempts(identifier, self.window_minutes)
+        return recent_attempts < self.max_attempts
 
     def record_attempt(self, identifier: str) -> None:
-        """Registra un intento de login."""
-        import time
-
-        if identifier not in self.attempts:
-            self.attempts[identifier] = []
-        self.attempts[identifier].append(time.time())
+        """Registra un intento de login en la base de datos."""
+        if not identifier or identifier == "unknown":
+            return # No registrar si no hay identificador
+        
+        record_login_attempt(identifier)
 
 
 # Instancia global del limitador
 rate_limiter = RateLimiter()
+
+
+def get_client_ip() -> str:
+    """Obtiene la IP del cliente de las cabeceras de la solicitud."""
+    try:
+        server = Server.get_current()
+        session_info = server._get_session_info(server.get_current_session_id())
+        if session_info and hasattr(session_info, 'ws') and session_info.ws:
+            # Acceso a través del websocket
+            return session_info.ws.request.remote_ip
+    except Exception as e:
+        logger.warning(f"No se pudo obtener la IP del cliente: {e}")
+
+    # Fallback si no se puede obtener la IP
+    return "unknown"
 
 
 @lru_cache(maxsize=128)

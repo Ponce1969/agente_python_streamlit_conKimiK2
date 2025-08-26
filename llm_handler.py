@@ -9,6 +9,7 @@ from collections.abc import Generator
 from io import StringIO
 from typing import Any
 
+import streamlit as st
 from groq import APIStatusError, Groq
 from groq.types.chat.chat_completion import ChatCompletionMessage
 
@@ -18,9 +19,12 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 
-def get_groq_client(api_key: str) -> Groq:
-    """Inicializa y devuelve un cliente de Groq."""
-    return Groq(api_key=api_key)
+@st.cache_resource
+def get_groq_client() -> Groq:
+    """Inicializa y devuelve un cliente de Groq cacheado para toda la app."""
+    if not settings.groq_api_key:
+        raise ValueError("La API key de Groq no está configurada.")
+    return Groq(api_key=settings.groq_api_key)
 
 def stream_handler(stream: Any) -> Generator[str, None, str]:
     """Procesa la respuesta en streaming de la API."""

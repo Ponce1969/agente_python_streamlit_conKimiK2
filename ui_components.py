@@ -24,35 +24,25 @@ from llm_handler import get_groq_response
 from utils import chunk_text
 
 
-def _render_theme_selector() -> None:
-    """Renderiza un toggle para cambiar entre tema claro y oscuro."""
-    st.subheader("Tema")
-
-    # El valor inicial del toggle se basa en el estado actual del tema
-    is_dark_mode = st.session_state.get("theme", "light") == "dark"
-
-    # Crear el toggle. Su estado (on/off) determinará el tema.
-    if st.toggle("Modo Oscuro", value=is_dark_mode, key="theme_toggle"):
-        # Si el toggle está activado, el tema es oscuro
-        if st.session_state.theme != "dark":
-            st.session_state.theme = "dark"
-            st.rerun()
-    else:
-        # Si el toggle está desactivado, el tema es claro
-        if st.session_state.theme != "light":
-            st.session_state.theme = "light"
-            st.rerun()
-
+def render_theme_selector() -> None:
+    """Renderiza el selector de tema en la barra lateral con cambios en tiempo real."""
+    with st.sidebar:
+        st.subheader("Tema")
+        is_dark_mode = st.session_state.get("theme", "light") == "dark"
+        
+        # Toggle con cambio inmediato
+        new_theme = "dark" if st.toggle("Modo Oscuro", value=is_dark_mode, key="theme_toggle") else "light"
+        
+        # Solo actualizar si el tema cambió
+        if new_theme != st.session_state.get("theme", "light"):
+            st.session_state.theme = new_theme
+            st.rerun()  # 👈 Fuerza recarga para aplicar estilos CSS dinámicos
 
 def render_sidebar() -> None:
-    """Renderiza la barra lateral con todas las opciones."""
+    """Renderiza la barra lateral con todos sus componentes."""
     with st.sidebar:
-        st.title("⚙️ Opciones")
+        # El selector de tema se llama ahora desde main.py
         st.divider()
-
-        _render_theme_selector()
-
-        st.subheader("Análisis de Archivos")
         _render_file_uploader()
         st.divider()
 

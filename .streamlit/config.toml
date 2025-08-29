@@ -1,0 +1,28 @@
+
+[theme]
+# Color de acento primario para elementos interactivos.
+# Usaremos el azul que ya tenías en tus botones.
+primaryColor = "#2563eb"
+
+# Color de fondo del área de contenido principal.
+# Dejaremos que Streamlit lo gestione para los temas claro/oscuro.
+# backgroundColor = "#f5f7fb"
+
+# Color de fondo de la barra lateral y contenedores.
+# Dejaremos que Streamlit lo gestione.
+# secondaryBackgroundColor = "#ffffff"
+
+# Color del texto.
+# Dejaremos que Streamlit lo gestione.
+# textColor = "#24292e"
+
+# Fuente a utilizar en la aplicación.
+font = "sans serif"
+
+[server]
+# Recarga la aplicación automáticamente cuando se guarda un archivo de código fuente.
+runOnSave = true
+
+[client]
+# Muestra siempre la barra de herramientas para acceder al menú de temas.
+toolbarMode = "developer"

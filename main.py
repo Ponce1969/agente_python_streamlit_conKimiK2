@@ -20,14 +20,19 @@ def setup_logging():
 
 # Módulos locales
 from db import init_db, purge_old_messages, purge_old_login_attempts
-from styles import apply_global_styles, apply_theme
+from styles import load_css
 from llm_handler import get_groq_client
-from ui_components import render_chat_interface, render_sidebar, render_theme_selector
+from ui_components import render_chat_interface, render_sidebar
 from utils import SecurityUtils, get_client_ip, rate_limiter
 
 # ------------------------------------------------------------------
 # 1. Configuración de la página
 # ------------------------------------------------------------------
+# Logger del módulo
+logger = logging.getLogger(__name__)
+
+from streamlit.errors import StreamlitAPIException
+
 try:
     st.set_page_config(
         page_title="🤖 Agente Python 3.12+",
@@ -35,12 +40,9 @@ try:
         layout="wide",
         initial_sidebar_state="expanded",
     )
-except st.errors.StreamlitAPIException as e:
+except StreamlitAPIException as e:
     logger.error(f"Error al configurar la página de Streamlit: {e}")
     # Continuar es seguro, pero la configuración de la página puede no aplicarse.
-
-# Logger del módulo
-logger = logging.getLogger(__name__)
 
 
 
@@ -59,7 +61,6 @@ def initialize_session_state() -> None:
         "assistant_id": None,
         "run_id": None,
         "file_tokens_limit": settings.file_context_max_tokens,
-        "theme": "light",  # Valor por defecto, se actualizará con JS
         "file_context": None,
         "file_context_full": None,
         "file_chunks": None,
@@ -67,6 +68,7 @@ def initialize_session_state() -> None:
         "chunk_by_tokens": False,
         "auto_advance_chunks": False,
     }
+    
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
@@ -116,16 +118,14 @@ def handle_authentication() -> bool:
 # ------------------------------------------------------------------
 def main() -> None:
     """Función principal que orquesta la aplicación."""
-    apply_global_styles()
     initialize_session_state()
+    load_css()
 
     # La autenticación es bloqueante. Si no es exitosa, se detiene la ejecución.
     if not handle_authentication():
         st.stop()
 
     # El resto de la app solo se renderiza si la autenticación es exitosa
-    render_theme_selector()  # Primero el selector para que el estado se actualice
-    apply_theme()  # Luego se aplica el tema basado en el estado
     render_sidebar()
     render_chat_interface()
 

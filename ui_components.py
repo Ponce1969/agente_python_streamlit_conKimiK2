@@ -5,7 +5,7 @@ Módulo para componentes de la interfaz de usuario de Streamlit.
 """
 
 # Aquí moveremos las funciones render_sidebar y render_chat_interface
-from datetime import datetime
+from datetime import datetime, date
 
 import streamlit as st
 from groq import APIStatusError
@@ -24,19 +24,7 @@ from llm_handler import get_groq_response
 from utils import chunk_text
 
 
-def render_theme_selector() -> None:
-    """Renderiza el selector de tema en la barra lateral con cambios en tiempo real."""
-    with st.sidebar:
-        st.subheader("Tema")
-        is_dark_mode = st.session_state.get("theme", "light") == "dark"
-        
-        # Toggle con cambio inmediato
-        new_theme = "dark" if st.toggle("Modo Oscuro", value=is_dark_mode, key="theme_toggle") else "light"
-        
-        # Solo actualizar si el tema cambió
-        if new_theme != st.session_state.get("theme", "light"):
-            st.session_state.theme = new_theme
-            st.rerun()  # 👈 Fuerza recarga para aplicar estilos CSS dinámicos
+
 
 def render_sidebar() -> None:
     """Renderiza la barra lateral con todos sus componentes."""
@@ -93,11 +81,13 @@ def _render_export_options() -> None:
     end_date = c_to.date_input("Hasta", key="export_to_date")
     end_time = c_to.time_input("Hora hasta", key="export_to_time")
 
-    start_dt = datetime.combine(start_date, start_time)
-    end_dt = datetime.combine(end_date, end_time)
     range_messages = []
-    if start_dt <= end_dt:
-        range_messages = load_messages_between(start_dt, end_dt)
+    # Verificar que los valores de fecha son del tipo correcto antes de combinar
+    if isinstance(start_date, date) and isinstance(end_date, date):
+        start_dt = datetime.combine(start_date, start_time)
+        end_dt = datetime.combine(end_date, end_time)
+        if start_dt <= end_dt:
+            range_messages = load_messages_between(start_dt, end_dt)
 
     c1, c2 = st.columns(2)
     c1.download_button(
@@ -165,7 +155,7 @@ def _render_chunk_manager() -> None:
         st.caption(f"El archivo es grande. Selecciona la parte (1-{total}):")
         c1, c2, c3 = st.columns([1, 2, 1])
         if c1.button("⟵", disabled=idx <= 0): st.session_state.file_chunk_index -= 1
-        idx = c2.number_input("Parte", 1, total, idx + 1) - 1
+        idx = int(c2.number_input("Parte", 1, total, idx + 1)) - 1
         st.session_state.file_chunk_index = idx
         if c3.button("⟶", disabled=idx >= total - 1): st.session_state.file_chunk_index += 1
         
@@ -181,26 +171,30 @@ def _handle_chat_input(window_size: int) -> None:
 
         history = st.session_state.messages[1:]
         if len(history) > window_size:
-            st.session_state.messages = [st.session_state.messages[0]] + history[-window_size:]
+            limit = int(window_size)
+            st.session_state.messages = [st.session_state.messages[0]] + history[-limit:]
 
         with st.chat_message("assistant", avatar="🤖"):
             with st.spinner("🤖 El agente está pensando..."):
                 try:
                     response_generator = get_groq_response(st.session_state.client, st.session_state.messages)
                     full_response = st.write_stream(response_generator)
-                    st.session_state.messages.append({"role": "assistant", "content": full_response})
-                    save_message("assistant", full_response)
-                except APIStatusError as e:
-                    st.error(f"Error de la API de Groq: {e.message}")
-                except Exception as e:
-                    st.error(f"Ocurrió un error inesperado: {e}")
-                else:
+                    
+                    # Forzar la conversión a str para guardar en la BD
+                    st.session_state.messages.append({"role": "assistant", "content": str(full_response)})
+                    save_message("assistant", str(full_response))
+                    
+                    # Avanzar al siguiente chunk si está configurado
                     if st.session_state.get("auto_advance_chunks") and st.session_state.get("file_chunks"):
                         total = len(st.session_state.file_chunks)
                         idx = st.session_state.file_chunk_index
                         if idx < total - 1:
                             st.session_state.file_chunk_index += 1
                             st.rerun()
+                except APIStatusError as e:
+                    st.error(f"Error de la API de Groq: {e.message}")
+                except Exception as e:
+                    st.error(f"Ocurrió un error inesperado: {e}")
 
 def _prepare_chat_messages(window_size: int) -> str:
     """Prepara el prompt del sistema y carga los mensajes iniciales."""

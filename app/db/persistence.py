@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Any
 
-from config import settings
+from app.config import settings
 
 # ------------------------------------------------------------------
 # 1. Configuración

@@ -10,7 +10,7 @@ import bcrypt
 import streamlit as st
 from streamlit.web.server.server import Server
 
-from db import count_recent_login_attempts, record_login_attempt
+from app.db.persistence import count_recent_login_attempts, record_login_attempt
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)

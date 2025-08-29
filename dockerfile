@@ -32,5 +32,6 @@ RUN mkdir -p /app/data && chown -R 1001:1001 /app/data
 EXPOSE 8501
 
 # Comando para ejecutar la aplicación.
-# Usamos "main.py" que es el nombre de tu archivo principal.
-CMD ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Usamos 'python -m streamlit' para asegurar que el PYTHONPATH es correcto
+# después de la refactorización a la carpeta 'app'.
+CMD ["python", "-m", "streamlit", "run", "app/main.py", "--server.port=8501", "--server.address=0.0.0.0"]

@@ -10,18 +10,18 @@ from datetime import datetime, date
 import streamlit as st
 from groq import APIStatusError
 
-from config import settings
-from db import (
+from app.config import settings
+from app.db.persistence import (
     delete_all_messages,
     load_all_messages,
     load_messages,
     load_messages_between,
     save_message,
 )
-from export import export_md, export_pdf
-from file_handler import process_uploaded_file
-from llm_handler import get_groq_response
-from utils import chunk_text
+from app.core.export import export_md, export_pdf
+from app.core.file_handler import process_uploaded_file
+from app.llm.llm_handler import get_groq_response
+from app.core.utils import chunk_text
 
 
 

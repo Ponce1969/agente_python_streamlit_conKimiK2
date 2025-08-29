@@ -13,7 +13,7 @@ import streamlit as st
 from groq import APIStatusError, Groq
 from groq.types.chat.chat_completion import ChatCompletionMessage
 
-from config import settings
+from app.config import settings
 
 # Configuración del logger
 logger = logging.getLogger(__name__)

@@ -4,7 +4,7 @@ import logging
 import streamlit as st
 from groq import Groq
 
-from config import settings
+from app.config import settings
 
 # ------------------------------------------------------------------
 # 0. Configuración del Logging
@@ -19,11 +19,11 @@ def setup_logging():
 
 
 # Módulos locales
-from db import init_db, purge_old_messages, purge_old_login_attempts
-from styles import load_css
-from llm_handler import get_groq_client
-from ui_components import render_chat_interface, render_sidebar
-from utils import SecurityUtils, get_client_ip, rate_limiter
+from app.db.persistence import init_db, purge_old_messages, purge_old_login_attempts
+from app.styles import load_css
+from app.llm.llm_handler import get_groq_client
+from app.ui.components import render_chat_interface, render_sidebar
+from app.core.utils import SecurityUtils, get_client_ip, rate_limiter
 
 # ------------------------------------------------------------------
 # 1. Configuración de la página

@@ -4,13 +4,14 @@
 Módulo para componentes de la interfaz de usuario de Streamlit.
 """
 
-# Aquí moveremos las funciones render_sidebar y render_chat_interface
+import re
 from datetime import datetime, date
 
 import streamlit as st
 from groq import APIStatusError
 
 from app.config import settings
+from app.core import code_tools
 from app.db.persistence import (
     delete_all_messages,
     load_all_messages,
@@ -24,19 +25,14 @@ from app.llm.llm_handler import get_groq_response
 from app.core.utils import chunk_text
 
 
-
-
 def render_sidebar() -> None:
     """Renderiza la barra lateral con todos sus componentes."""
     with st.sidebar:
-        # El selector de tema se llama ahora desde main.py
         st.divider()
         _render_file_uploader()
         st.divider()
-
         _render_export_options()
         st.divider()
-
         _render_maintenance_options()
 
 def _render_file_uploader() -> None:
@@ -63,8 +59,6 @@ def _render_file_uploader() -> None:
                     st.session_state.file_context = content
                     st.success(f"✅ Archivo '{uploaded_file.name}' analizado.")
 
-
-
 def _render_export_options() -> None:
     """Renderiza las opciones para exportar el historial de chat."""
     st.subheader("Exportar Chat")
@@ -82,7 +76,6 @@ def _render_export_options() -> None:
     end_time = c_to.time_input("Hora hasta", key="export_to_time")
 
     range_messages = []
-    # Verificar que los valores de fecha son del tipo correcto antes de combinar
     if isinstance(start_date, date) and isinstance(end_date, date):
         start_dt = datetime.combine(start_date, start_time)
         end_dt = datetime.combine(end_date, end_time)
@@ -112,8 +105,6 @@ def _render_export_options() -> None:
         "Rango (PDF)", export_pdf(range_messages, True) if range_messages else b"", "historial_rango.pdf", "application/pdf", disabled=not range_messages, use_container_width=True
     )
 
-
-
 def _render_maintenance_options() -> None:
     """Renderiza las opciones de mantenimiento y gestión de contexto."""
     st.subheader("Mantenimiento")
@@ -138,9 +129,11 @@ def _render_chunk_manager() -> None:
             st.number_input("Límite de tokens", value=2000, key="file_tokens_limit")
         st.checkbox("Avanzar automáticamente", key="auto_advance_chunks")
 
-    chunk_chars = (st.session_state.file_tokens_limit * 4 
-                   if st.session_state.chunk_by_tokens 
-                   else settings.file_context_max_chars)
+    chunk_chars = (
+        st.session_state.file_tokens_limit * 4 
+        if st.session_state.chunk_by_tokens 
+        else settings.file_context_max_chars
+    )
 
     if len(st.session_state.file_context_full) > chunk_chars:
         if st.session_state.file_chunks is None or \
@@ -162,7 +155,6 @@ def _render_chunk_manager() -> None:
         st.session_state.file_context = st.session_state.file_chunks[idx]
         st.info(f"Parte {idx+1}/{total} · {len(st.session_state.file_context)} chars")
 
-
 def _handle_chat_input(window_size: int) -> None:
     """Gestiona la entrada del usuario y la respuesta del modelo."""
     if prompt := st.chat_input("Escribe tu pregunta sobre Python aquí..."):
@@ -180,11 +172,9 @@ def _handle_chat_input(window_size: int) -> None:
                     response_generator = get_groq_response(st.session_state.client, st.session_state.messages)
                     full_response = st.write_stream(response_generator)
                     
-                    # Forzar la conversión a str para guardar en la BD
                     st.session_state.messages.append({"role": "assistant", "content": str(full_response)})
                     save_message("assistant", str(full_response))
                     
-                    # Avanzar al siguiente chunk si está configurado
                     if st.session_state.get("auto_advance_chunks") and st.session_state.get("file_chunks"):
                         total = len(st.session_state.file_chunks)
                         idx = st.session_state.file_chunk_index
@@ -215,16 +205,63 @@ def _prepare_chat_messages(window_size: int) -> str:
     st.session_state.messages[0] = {"role": "system", "content": system_prompt}
     return system_prompt
 
+def _render_code_actions(content: str, msg_index: int):
+    """Renderiza botones de acción para bloques de código en un mensaje."""
+    # Regex mejorada para ser más flexible con 'python' y el salto de línea
+    py_code_blocks = re.findall(r"```(python)?\n?(.*?)""", content, re.DOTALL)
+    if not py_code_blocks:
+        return
+
+    # Damos un ID único al análisis para el estado de la sesión
+    analysis_key = f"analysis_result_{msg_index}"
+
+    st.write("---")  # Usar un separador más sutil
+    c1, c2, c3 = st.columns(3)
+
+    # Usamos el primer bloque de código para el análisis
+    # py_code_blocks es una lista de tuplas, ej: [('python', 'código'), ('', 'otro código')]
+    # El código real está en el segundo elemento de la tupla.
+    code_to_analyze = py_code_blocks[0][1]
+
+    if c1.button("Formatear (Ruff)", key=f"ruff_fmt_{msg_index}", use_container_width=True):
+        formatted_code, success = code_tools.run_ruff_format(code_to_analyze)
+        if success:
+            st.session_state[analysis_key] = ("Código Formateado", formatted_code)
+        else:
+            st.session_state[analysis_key] = ("Error de Formateo", formatted_code)
+        st.rerun()  # Forzar rerender para mostrar el resultado inmediatamente
+
+    if c2.button("Validar (Ruff)", key=f"ruff_chk_{msg_index}", use_container_width=True):
+        ruff_output, _ = code_tools.run_ruff_check(code_to_analyze)
+        st.session_state[analysis_key] = ("Análisis de Ruff", ruff_output)
+        st.rerun()
+
+    if c3.button("Validar (MyPy)", key=f"mypy_chk_{msg_index}", use_container_width=True):
+        mypy_output, _ = code_tools.run_mypy_check(code_to_analyze)
+        st.session_state[analysis_key] = ("Análisis de MyPy", mypy_output)
+        st.rerun()
+
+    if analysis_key in st.session_state:
+        # Usamos pop para obtener el resultado y limpiarlo del estado de la sesión,
+        # evitando que se muestre en futuras recargas de la página.
+        title, output = st.session_state.pop(analysis_key)
+        with st.expander(f"Resultado: {title}", expanded=True):
+            output_lang = 'python' if title == "Código Formateado" else 'bash'
+            st.code(output, language=output_lang, line_numbers=True)
+
+
 def _display_chat_messages(display_window: int) -> None:
     """Muestra los mensajes del historial de chat."""
     to_render = st.session_state.messages[1:]
     if len(to_render) > display_window:
         to_render = to_render[-display_window:]
     
-    for msg in to_render:
+    for i, msg in enumerate(to_render):
         avatar = "👤" if msg["role"] == "user" else "🤖"
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
+            if msg["role"] == "assistant":
+                _render_code_actions(msg["content"], i)
 
 def render_chat_interface() -> None:
     st.title("🤖 Agente Experto en Python")

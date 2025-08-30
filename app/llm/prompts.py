@@ -1,6 +1,6 @@
 # app/llm/prompts.py
 """
-Módulo optimizado para prompts de especialización en Python 3.12+.
+Módulo otimizado para prompts de especialización en Python 3.12+.
 Define configuraciones especializadas para diferentes roles técnicos.
 """
 
@@ -29,9 +29,9 @@ RESPONSE_FORMAT: Final[str] = (
     "- Agregar type hints completos (PEP 484, PEP 585, PEP 604).\n"
     "- Ejemplos de uso con `>>>`.\n"
     "- El código debe ser validado con `mypy --strict` y `ruff check`.\n"
-    "- Si el código es ejecutable (un script o una app), incluye el comando para lanzarlo "
-    "en una etiqueta `<run_command>`, por ejemplo: `<run_command>uvicorn main:app --reload</run_command>`. "
-    "Si no es ejecutable, omite la etiqueta.\n"
+    "- Si el código es ejecutable, incluye el comando en `<run_command>`.\n"
+    "- Para crear/modificar archivos, pide confirmación antes de usar "
+    "`write_file` o `replace`.\n"
 )
 
 TESTING_STANDARDS: Final[str] = (
@@ -55,7 +55,7 @@ PYTHON_FEATURES: Final[str] = (
     "- **Asincronía**: Uso completo de `async/await` con `anyio` "
     "o `asyncio TaskGroups`.\n"
     "- **Performance**: `asyncio`, `multiprocessing`, `functools.lru_cache`, "
-    "`functools.singledispatchedmethod`.\n"
+    "`functools.singledispatchmethod`.\n"
 )
 
 # --- Prompts del Sistema Mejorados ---
@@ -83,9 +83,9 @@ SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
         "`factory-boy`, `Faker`.\n"
         "- **Monitoreo**: `structlog`, `prometheus-client`, OpenTelemetry.\n\n"
         "## Estándares de Código y Respuesta:\n"
-        f"{PYTHON_FEATURES}\n"
-        f"{DEPENDENCY_STANDARDS}\n"
-        f"{TESTING_STANDARDS}\n"
+        f"{PYTHON_FEATURES}"
+        f"{DEPENDENCY_STANDARDS}"
+        f"{TESTING_STANDARDS}"
         f"{RESPONSE_FORMAT}"
     ),
     AgentMode.CODE_GENERATOR: (
@@ -107,9 +107,9 @@ SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
         "parámetros opcionales.\n"
         "- **Strategy Pattern**: Para implementar algoritmos intercambiables.\n\n"
         "## Estándares de Código y Respuesta:\n"
-        f"{PYTHON_FEATURES}\n"
-        f"{DEPENDENCY_STANDARDS}\n"
-        f"{TESTING_STANDARDS}\n"
+        f"{PYTHON_FEATURES}"
+        f"{DEPENDENCY_STANDARDS}"
+        f"{TESTING_STANDARDS}"
         f"{RESPONSE_FORMAT}"
     ),
     AgentMode.SECURITY_ANALYST: (
@@ -155,8 +155,8 @@ SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
         "- **Migraciones**: Creación de revisiones de Alembic manuales y "
         "autogeneradas, asegurando cero downtime.\n\n"
         "## Estándares de Código y Respuesta:\n"
-        f"{DEPENDENCY_STANDARDS}\n"
-        f"{TESTING_STANDARDS}\n"
+        f"{DEPENDENCY_STANDARDS}"
+        f"{TESTING_STANDARDS}"
         f"{RESPONSE_FORMAT}"
     ),
     AgentMode.REFACTOR_ENGINEER: (
@@ -181,9 +181,9 @@ SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
         "- **Sintaxis Moderna**: Introducir `match/case`, `walrus operator` (:=), "
         "f-strings.\n\n"
         "## Estándares de Código y Respuesta:\n"
-        f"{PYTHON_FEATURES}\n"
-        f"{DEPENDENCY_STANDARDS}\n"
-        f"{TESTING_STANDARDS}\n"
+        f"{PYTHON_FEATURES}"
+        f"{DEPENDENCY_STANDARDS}"
+        f"{TESTING_STANDARDS}"
         f"{RESPONSE_FORMAT}"
     ),
 }

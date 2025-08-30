@@ -1,98 +1,89 @@
-1# 🐍 Agente de Chat IA para Python 3.12+
+# 🐍 Agente de Desarrollo IA Interactivo (Python 3.12+)
 
-Asistente experto en Python 3.12+ con Streamlit y Groq (`moonshotai/kimi-k2-instruct`). Incluye persistencia en SQLite, exportación a PDF/Markdown, análisis de archivos y mantenimiento del historial.
+Este proyecto es un agente de IA interactivo y especializado para el desarrollo de backend con Python. Construido con Streamlit y la API de Groq, va más allá de un simple chatbot para convertirse en un asistente proactivo que participa en el ciclo de vida del desarrollo de software.
 
-## ✨ Características
+El agente puede generar código, analizarlo con herramientas de calidad, ejecutarlo bajo demanda y proponer modificaciones directamente sobre la base de código del proyecto.
 
-- **UI renovada** con estilos para chat y bloques de código.
-- **Streaming** de respuestas del modelo.
-- **Exportación** a PDF y Markdown.
-- **Análisis de archivos** (`.py`, `.txt`, `.md`, `.csv`, `.pdf`) con límite 5MB y manejo de errores.
-- **Autenticación** con contraseña maestra (hash en memoria).
-- **Historial persistente** en SQLite y botón para borrarlo desde la barra lateral.
-- **Control de contexto** configurable para evitar errores HTTP 413.
+---
 
-## 📂 Estructura
+## ✨ Características Principales
 
-- `main.py`: Punto de entrada de la aplicación. Orquesta la inicialización, autenticación y renderizado de la UI.
-- `config.py`: Centraliza toda la configuración de la aplicación usando Pydantic-settings, cargando desde `.env`.
-- `ui_components.py`: Contiene los componentes de la interfaz de usuario de Streamlit (`render_sidebar`, `render_chat_interface`).
-- `llm_handler.py`: Gestiona toda la lógica de interacción con la API de Groq (LLM).
-- `styles.py`: Define los estilos CSS para los temas claro y oscuro de la aplicación.
-- `db.py`: Módulo de acceso a la base de datos SQLite.
-- `export.py`: Lógica para exportar el historial del chat a Markdown y PDF.
-- `file_handler.py`: Maneja la carga y procesamiento de archivos.
-- `utils.py`: Contiene utilidades de seguridad (hashing, verificación) y el limitador de intentos (rate limiter).
-- `docker-compose.yml`, `dockerfile`: Archivos para la contenerización con Docker.
-- `.env`: Almacena las variables de entorno y secretos (no incluido en el control de versiones).
+### Capacidades del Agente
 
-## 🛠️ Stack
+- **Agente Multi-Personalidad**: Elige entre diferentes roles especializados (Arquitecto, Ingeniero de Código, Auditor de Seguridad, etc.) para obtener respuestas adaptadas a tareas específicas. Cada modo utiliza un prompt de sistema altamente detallado y técnico.
+- **Análisis de Código Interactivo**: Analiza los bloques de código generados con un solo clic, usando herramientas estándar de la industria:
+    - **Formatear (Ruff)**: Aplica formato de código consistente.
+    - **Validar (Ruff)**: Detecta problemas de estilo y errores comunes.
+    - **Validar (MyPy)**: Realiza un análisis estático de tipos.
+- **Ejecución de Código Inteligente**: El agente identifica si el código generado es ejecutable y proporciona el comando exacto para correrlo (ej. `uvicorn main:app` para FastAPI o `python mi_script.py` para un script). El botón de ejecución solo se activa si el comando está presente.
+- **Gestión de Archivos**: El agente puede proponer la creación de nuevos archivos o la modificación de los existentes. **Ningún cambio se realiza sin la confirmación explícita del usuario**.
 
-Python 3.12+, Streamlit, Groq API, `uv`, Docker, SQLite, ReportLab.
+### Funcionalidades de la Aplicación
 
-## 🚀 Puesta en marcha
+- **UI Moderna**: Interfaz de usuario clara y funcional construida con Streamlit.
+- **Streaming de Respuestas**: Las respuestas del modelo se muestran en tiempo real.
+- **Análisis de Archivos**: Sube archivos (`.py`, `.txt`, `.pdf`, etc.) para que el agente los use como contexto en sus respuestas.
+- **Persistencia**: El historial de conversaciones se guarda en una base de datos SQLite.
+- **Exportación**: Descarga el historial del chat en formato Markdown o PDF.
+- **Seguridad**: Autenticación mediante contraseña y limitador de intentos de login.
 
-Requisitos: Docker y Docker Compose.
+---
 
-1) Crea `.env` en la raíz con al menos:
+## 🏛️ Arquitectura
 
-```env
-# Credenciales obligatorias
-GROQ_API_KEY="tu_api_key_de_groq"
-MASTER_PASSWORD="tu_contraseña_maestra"
+El proyecto sigue una estructura modular para facilitar la escalabilidad y el mantenimiento.
 
-# Opcionales (valores por defecto mostrados)
-GROQ_MODEL_NAME="moonshotai/kimi-k2-instruct"  # puedes cambiarlo por otro modelo de Groq
-DB_PATH="db/chat_history.db"
-CONVERSATION_WINDOW_MESSAGES=20
-DISPLAY_WINDOW_MESSAGES=12
-FILE_CONTEXT_MAX_CHARS=8000
-MESSAGES_MAX_CHARS=12000
-```
+- `main.py`: Punto de entrada de la aplicación Streamlit. Orquesta la inicialización y la UI.
+- `config.py`: Configuración centralizada mediante Pydantic-settings (carga desde `.env`).
+- `app/styles.py`: Estilos CSS para la interfaz.
+- `app/ui/components.py`: Lógica de los componentes de la UI de Streamlit.
+- `app/llm/prompts.py`: **(Clave)** Define las personalidades del agente, las constantes de formato y los prompts de sistema detallados.
+- `app/llm/llm_handler.py`: Gestiona la comunicación con la API de Groq.
+- `app/core/code_tools.py`: Funciones para interactuar con herramientas de CLI como `ruff`, `mypy` y para ejecutar comandos de shell.
+- `app/core/file_handler.py`: Lógica para la carga y procesamiento de archivos.
+- `app/core/utils.py`: Utilidades de seguridad y rate limiting.
+- `app/db/persistence.py`: Lógica de interacción con la base de datos SQLite (crear, leer, guardar, borrar).
 
-2) Ejecuta:
+---
 
-```bash
-docker compose up --build -d
-```
+## 🚀 Puesta en Marcha
 
-Abre http://localhost:8501 y usa la contraseña maestra.
+**Requisitos**: Docker y Docker Compose.
 
+1.  **Crear el archivo `.env`** en la raíz del proyecto con, como mínimo, las siguientes variables:
 
-## 🧰 Uso
+    ```env
+    GROQ_API_KEY="tu_api_key_de_groq"
+    MASTER_PASSWORD="tu_contraseña_maestra"
+    ```
 
-- **Chat**: escribe tu pregunta. Respuesta en streaming.
-- **Análisis de archivos**: sube un archivo en la barra lateral. Se inyecta al prompt con límite `FILE_CONTEXT_MAX_CHARS` (se muestra aviso si se trunca).
-- **Exportar**: descarga historial como Markdown o PDF.
-- **Mantenimiento**: botón “🗑️ Borrar historial (SQLite)” para eliminar la tabla de mensajes y limpiar el estado de sesión.
+2.  **Ejecutar la aplicación**:
 
-## ⚙️ Control de contexto
+    ```bash
+    docker compose up --build -d
+    ```
 
-- `CONVERSATION_WINDOW_MESSAGES`: cuántos mensajes se cargan desde SQLite al iniciar.
-- `FILE_CONTEXT_MAX_CHARS`: máximo de caracteres del archivo adjunto que van al prompt.
-- `MESSAGES_MAX_CHARS`: máximo de caracteres del historial enviados por request (el mensaje `system` siempre se mantiene).
+3.  Abrir [http://localhost:8501](http://localhost:8501) en el navegador.
 
-Sugerencias: 12 / 6000 / 10000. Si surge HTTP 413, reduce (p.ej., 8 / 4000 / 8000).
+---
 
-## 🔐 Autenticación
+## 🧰 Flujo de Trabajo Típico
 
-`MASTER_PASSWORD` se hashea al inicio (`MASTER_PASSWORD_HASH`) y no se guarda en texto plano. Hay limitador de intentos de login.
+1.  **Selecciona un Modo**: En la barra lateral, elige la personalidad del agente que mejor se adapte a tu tarea (ej. "Ingeniero de Código").
+2.  **Sube Contexto (Opcional)**: Sube un archivo existente para que el agente lo tenga en cuenta.
+3.  **Genera Código**: Pide al agente que realice una tarea. Ej: "Crea un endpoint de FastAPI para obtener un usuario por su ID".
+4.  **Analiza y Ejecuta**:
+    - Usa los botones **Formatear** y **Validar** para asegurar la calidad del código generado.
+    - Si el agente proporciona un comando de ejecución, el botón **▶️ Ejecutar** se activará. Úsalo para probar el código.
+5.  **Itera y Refactoriza**: Pide al agente que añada una nueva funcionalidad o que refactorice el código. El agente puede proponerte crear un nuevo archivo o modificar uno existente. Aprueba la operación para que el agente aplique el cambio.
 
-## 🧪 Calidad y desarrollo
+---
+
+## 🧪 Calidad y Desarrollo
+
+Para ejecutar los linters y type checkers localmente:
 
 ```bash
 uv run ruff check --fix .
 uv run mypy .
 ```
-
-Notas: algunas cadenas largas están partidas (E501). `render_chat_interface()` tiene `# noqa: C901` temporal.
-
-## 🗃️ Base de datos
-
-Archivo SQLite en `db/chat_history.db` (mapeado en Docker). Las funciones en `db.py` se encargan de crear tablas/índices, guardar/cargar mensajes, purgar por fecha y borrar todo el historial.
-
-## 🧯 Troubleshooting
-
-- **HTTP 413**: baja `MESSAGES_MAX_CHARS` y/o `FILE_CONTEXT_MAX_CHARS`; borra historial; reduce `CONVERSATION_WINDOW_MESSAGES`.
-- **“No hay mensajes para exportar”**: el historial está vacío; envía algún mensaje.
-- **Logs con `init_db()` repetido**: es normal en Streamlit por las re-ejecuciones.

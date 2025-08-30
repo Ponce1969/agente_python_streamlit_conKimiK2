@@ -8,37 +8,6 @@ Este documento describe los pasos propuestos para refactorizar y mejorar la apli
 
 El objetivo de esta fase es organizar el código fuente en una estructura de directorios modular y escalable. Esto mejora la mantenibilidad y facilita la adición de nuevas funcionalidades.
 
-### Nueva Estructura de Directorios Propuesta
-
-```
-/agentes
-├── .streamlit/
-│   └── config.toml
-├── app/
-│   ├── __init__.py
-│   ├── main.py             # Punto de entrada principal de Streamlit
-│   ├── config.py           # Configuración centralizada
-│   ├── styles.py           # Estilos visuales
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── file_handler.py # Lógica para manejar archivos
-│   │   └── utils.py        # Funciones de utilidad
-│   ├── db/
-│   │   ├── __init__.py
-│   │   └── persistence.py  # Lógica de interacción con la base de datos
-│   ├── llm/
-│   │   ├── __init__.py
-│   │   └── llm_handler.py  # Lógica para interactuar con el LLM
-│   └── ui/
-│       ├── __init__.py
-│       └── components.py   # Componentes de la interfaz de Streamlit
-├── docker-compose.yml
-├── Dockerfile
-├── pyproject.toml
-├── README.md
-└── refactor.md
-```
-
 ---
 
 ## Fase 2: Mejoras Funcionales y de Escalabilidad
@@ -49,28 +18,38 @@ Una vez establecida la nueva arquitectura, podemos empezar a añadir funcionalid
 
 Implementar un selector en la interfaz de usuario (`st.selectbox`) para permitir al usuario elegir un "modo" o "personalidad" para el agente. Cada modo utilizará un `SYSTEM_PROMPT` ajustado para tareas específicas.
 
-*   **Modo "Generador de Código":** Optimizado para crear endpoints de FastAPI, modelos Pydantic, etc.
-*   **Modo "Analista de Seguridad":** Enfocado en revisar código en busca de vulnerabilidades (ej. uso de `argon2`, inyección de dependencias en FastAPI).
-*   **Modo "Experto en Base de Datos":** Especializado en generar consultas SQL para PostgreSQL y ayudar en el diseño de esquemas.
-*   **Modo "Debugger y Refactor":** Ayuda a depurar y refactorizar código existente.
-
 ### Idea B: Integración de Herramientas de Desarrollo
 
 Darle al agente la capacidad de interactuar con herramientas de línea de comandos para analizar y ejecutar código.
 
-1.  **Ejecución de Código:** Añadir un botón "▶️ Ejecutar" que tome el código generado y lo ejecute de forma segura dentro del contenedor Docker, mostrando la salida (stdout/stderr) en la UI.
-2.  **Análisis de Calidad de Código:** Integrar botones para:
-    *   **"Validar con MyPy":** Ejecuta `mypy` sobre el código y muestra los errores de tipado.
-    *   **"Formatear/Linter con Ruff":** Ejecuta `ruff` para formatear y detectar problemas de estilo y errores comunes.
-3.  **Gestión de Archivos del Proyecto:** Permitir al agente proponer la creación o modificación de archivos en el espacio de trabajo, con una confirmación del usuario.
+---
+
+## Fase 3: Implementación de la Idea A - "Modos de Especialización"
+
+Esta fase se centra en implementar el selector de modos para el agente, permitiendo al usuario elegir una especialización y ajustando el `SYSTEM_PROMPT` en consecuencia.
 
 ---
 
-## Roadmap Sugerido
+## Fase 4: Profesionalización de Prompts
 
-Se recomienda seguir los siguientes pasos para una evolución ordenada del proyecto:
+Esta fase se centra en mejorar radicalmente la calidad y especificidad de los prompts para guiar al modelo de forma más precisa y profesional.
 
-1.  **Implementar la Fase 1:** Realizar la reestructuración de la arquitectura. Es la base que facilitará todo lo demás.
-2.  **Implementar la Idea B.2 (Integración con MyPy/Ruff):** Esta es una mejora de alto impacto y relativamente sencilla que aporta un valor inmenso al flujo de trabajo.
-3.  **Implementar la Idea A (Modos de Especialización):** Añadir esta capa de inteligencia contextual hará que el agente sea mucho más preciso y útil.
-4.  **Explorar la Idea B.1 y B.3 (Ejecución de código y Gestión de archivos):** Estas son las funcionalidades más avanzadas y requieren consideraciones de seguridad adicionales, pero completarían la visión de un agente de desarrollo totalmente interactivo.
+### 4.1: Reconstrucción de `app/llm/prompts.py`
+
+El objetivo es refactorizar completamente el archivo de prompts para que sea más modular, mantenible y potente.
+
+- **Modernizar `AgentMode`**: Migrar de `Enum` a `StrEnum` y utilizar nombres de rol más descriptivos y profesionales (ej. "Arquitecto Python Senior").
+- **Crear Constantes Modulares**: Extraer fragmentos de texto comunes y reutilizables de los prompts (como formatos de respuesta, estándares de testing, herramientas) a constantes `Final` para asegurar consistencia y facilitar el mantenimiento.
+- **Reescribir `SYSTEM_PROMPTS`**: Reemplazar los prompts existentes por versiones mucho más detalladas y técnicas, utilizando f-strings para componerlos a partir de las constantes modulares. Cada prompt incluirá:
+    - Especialización y stack tecnológico detallado.
+    - Patrones de arquitectura y diseño.
+    - Estándares de código, testing y dependencias.
+    - Ejemplos de código de alta calidad.
+- **Añadir Autovalidación**: Implementar una función `validate_prompts()` que se ejecute al inicio para verificar la integridad del diccionario de prompts, asegurando que todos los modos estén definidos y no estén vacíos.
+
+### 4.2: Centralizar la Lógica de Contexto
+
+Para mejorar la cohesión y seguir el principio de Responsabilidad Única, se centralizará toda la lógica de construcción de prompts.
+
+- **Crear un Helper Central**: Implementar una función `get_system_prompt(mode: AgentMode, file_context: str | None) -> str` dentro de `app/llm/prompts.py`.
+- **Refactorizar `_prepare_chat_messages`**: Modificar la función en `app/ui/components.py` para que, en lugar de construir el prompt manualmente, simplemente llame al nuevo helper `get_system_prompt`. Esto delega toda la lógica de manipulación de prompts al módulo `llm`.

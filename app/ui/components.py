@@ -23,11 +23,21 @@ from app.core.export import export_md, export_pdf
 from app.core.file_handler import process_uploaded_file
 from app.llm.llm_handler import get_groq_response
 from app.core.utils import chunk_text
+from app.llm.prompts import AgentMode, get_system_prompt
 
 
 def render_sidebar() -> None:
     """Renderiza la barra lateral con todos sus componentes."""
     with st.sidebar:
+        st.title("Configuración del Agente")
+        
+        st.selectbox(
+            "Elige el modo del agente:",
+            options=[mode.value for mode in AgentMode],
+            key="agent_mode",
+            index=0
+        )
+
         st.divider()
         _render_file_uploader()
         st.divider()
@@ -186,69 +196,71 @@ def _handle_chat_input(window_size: int) -> None:
                 except Exception as e:
                     st.error(f"Ocurrió un error inesperado: {e}")
 
-def _prepare_chat_messages(window_size: int) -> str:
+def _prepare_chat_messages(window_size: int) -> None:
     """Prepara el prompt del sistema y carga los mensajes iniciales."""
-    system_prompt = settings.BASE_SYSTEM_PROMPT
-    if st.session_state.file_context:
-        file_ctx = st.session_state.file_context
-        system_prompt += (
-            f"\n\n--- INICIO DEL CONTEXTO DEL ARCHIVO ADJUNTO ---\n"
-            f"{file_ctx}\n"
-            f"--- FIN DEL CONTEXTO ---"
-        )
+    selected_mode_value = st.session_state.get("agent_mode", AgentMode.PYTHON_ARCHITECT.value)
+    selected_mode = AgentMode(selected_mode_value)
+
+    system_prompt = get_system_prompt(
+        mode=selected_mode,
+        file_context=st.session_state.get("file_context")
+    )
 
     if not st.session_state.messages:
         st.session_state.messages = [
             {"role": "system", "content": system_prompt},
             *load_messages(limit=window_size),
         ]
-    st.session_state.messages[0] = {"role": "system", "content": system_prompt}
-    return system_prompt
+    else:
+        st.session_state.messages[0] = {"role": "system", "content": system_prompt}
 
 def _render_code_actions(content: str, msg_index: int):
     """Renderiza botones de acción para bloques de código en un mensaje."""
-    # Regex mejorada para ser más flexible con 'python' y el salto de línea
-    py_code_blocks = re.findall(r"```(python)?\n?(.*?)""", content, re.DOTALL)
-    if not py_code_blocks:
+    # Extraer comando de ejecución si existe
+    run_command_match = re.search(r"<run_command>(.*?)</run_command>", content, re.DOTALL)
+    run_command = run_command_match.group(1).strip() if run_command_match else None
+
+    # Extraer solo el código Python para las otras herramientas
+    code_blocks = re.findall(r"```(python)?\n?(.*?)""", content, re.DOTALL)
+    if not code_blocks:
         return
 
-    # Damos un ID único al análisis para el estado de la sesión
+    code_to_analyze = code_blocks[0][1]
     analysis_key = f"analysis_result_{msg_index}"
 
-    st.write("---")  # Usar un separador más sutil
-    c1, c2, c3 = st.columns(3)
+    st.write("---")
+    c1, c2, c3, c4 = st.columns(4)
 
-    # Usamos el primer bloque de código para el análisis
-    # py_code_blocks es una lista de tuplas, ej: [('python', 'código'), ('', 'otro código')]
-    # El código real está en el segundo elemento de la tupla.
-    code_to_analyze = py_code_blocks[0][1]
+    # Botón de Ejecutar (condicional)
+    if c1.button("▶️ Ejecutar", key=f"run_code_{msg_index}", use_container_width=True, disabled=not run_command):
+        if run_command:
+            output, success = code_tools.run_shell_command(run_command)
+            title = "Resultado de la Ejecución" if success else "Error en la Ejecución"
+            st.session_state[analysis_key] = (title, output)
+            st.rerun()
 
-    if c1.button("Formatear (Ruff)", key=f"ruff_fmt_{msg_index}", use_container_width=True):
+    # Botones de Análisis de Código
+    if c2.button("Formatear (Ruff)", key=f"ruff_fmt_{msg_index}", use_container_width=True):
         formatted_code, success = code_tools.run_ruff_format(code_to_analyze)
-        if success:
-            st.session_state[analysis_key] = ("Código Formateado", formatted_code)
-        else:
-            st.session_state[analysis_key] = ("Error de Formateo", formatted_code)
-        st.rerun()  # Forzar rerender para mostrar el resultado inmediatamente
+        st.session_state[analysis_key] = ("Código Formateado", formatted_code) if success else ("Error de Formateo", formatted_code)
+        st.rerun()
 
-    if c2.button("Validar (Ruff)", key=f"ruff_chk_{msg_index}", use_container_width=True):
+    if c3.button("Validar (Ruff)", key=f"ruff_chk_{msg_index}", use_container_width=True):
         ruff_output, _ = code_tools.run_ruff_check(code_to_analyze)
         st.session_state[analysis_key] = ("Análisis de Ruff", ruff_output)
         st.rerun()
 
-    if c3.button("Validar (MyPy)", key=f"mypy_chk_{msg_index}", use_container_width=True):
+    if c4.button("Validar (MyPy)", key=f"mypy_chk_{msg_index}", use_container_width=True):
         mypy_output, _ = code_tools.run_mypy_check(code_to_analyze)
         st.session_state[analysis_key] = ("Análisis de MyPy", mypy_output)
         st.rerun()
 
+    # Mostrar resultados
     if analysis_key in st.session_state:
-        # Usamos pop para obtener el resultado y limpiarlo del estado de la sesión,
-        # evitando que se muestre en futuras recargas de la página.
         title, output = st.session_state.pop(analysis_key)
         with st.expander(f"Resultado: {title}", expanded=True):
             output_lang = 'python' if title == "Código Formateado" else 'bash'
             st.code(output, language=output_lang, line_numbers=True)
-
 
 def _display_chat_messages(display_window: int) -> None:
     """Muestra los mensajes del historial de chat."""

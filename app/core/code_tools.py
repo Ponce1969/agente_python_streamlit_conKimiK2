@@ -84,3 +84,8 @@ def run_mypy_check(code: str) -> tuple[str, bool]:
     finally:
         Path(tmp_file_path).unlink()
 
+def run_shell_command(command: str) -> tuple[str, bool]:
+    """Ejecuta un comando de shell y captura su salida."""
+    # Dividimos el comando en una lista para Popen
+    command_parts = command.split()
+    return _run_command(command_parts)

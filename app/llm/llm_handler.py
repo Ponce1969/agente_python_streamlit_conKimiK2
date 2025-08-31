@@ -5,13 +5,11 @@ Módulo para manejar la interacción con el modelo de lenguaje (Groq API).
 """
 
 import logging
-from collections.abc import Generator
-from io import StringIO
-from typing import Any
+from collections.abc import Generator, Iterator
 
 import streamlit as st
 from groq import APIStatusError, Groq
-from groq.types.chat.chat_completion import ChatCompletionMessage
+from groq.types.chat import ChatCompletionChunk, ChatCompletionMessageParam
 
 from app.config import settings
 
@@ -21,65 +19,90 @@ logger = logging.getLogger(__name__)
 
 @st.cache_resource
 def get_groq_client() -> Groq:
-    """Inicializa y devuelve un cliente de Groq cacheado para toda la app."""
+    """
+    Inicializa y devuelve un cliente de Groq cacheado para toda la app.
+    
+    Raises:
+        ValueError: Si la API key de Groq no está configurada en los settings.
+    """
     if not settings.groq_api_key:
         raise ValueError("La API key de Groq no está configurada.")
     return Groq(api_key=settings.groq_api_key)
 
-def stream_handler(stream: Any) -> Generator[str, None, str]:
-    """Procesa la respuesta en streaming de la API."""
-    buffer = StringIO()
-    try:
-        for chunk in stream:
-            content = chunk.choices[0].delta.content
-            if content:
-                buffer.write(content)
-                yield content
-    except Exception as e:
-        logger.error(f"Error en stream_handler: {e}")
-        yield "Error procesando la respuesta."
-    return buffer.getvalue()
 
 def build_messages_with_limit(
     messages: list[dict[str, str]], max_chars: int
-) -> list[dict[str, str]]:
-    """Construye la lista de mensajes sin exceder un límite de caracteres."""
+) -> list[ChatCompletionMessageParam]:
+    """
+    Construye la lista de mensajes para la API sin exceder un límite de caracteres.
+    
+    Conserva el primer mensaje (sistema) y trunca los más antiguos del historial.
+    """
     if not messages:
-        return messages
-    total = 0
-    system_msg = messages[0]
-    tail = messages[1:]
-    selected: list[dict[str, str]] = []
-    for m in reversed(tail):
-        c = len(m.get("content", ""))
-        if total + c > max_chars:
-            break
-        selected.append(m)
-        total += c
-    return [system_msg] + list(reversed(selected))
+        return []
 
-def get_groq_response(client: Groq, messages: list[dict[str, str]]) -> Generator[str, None, str]:
-    """Obtiene una respuesta en streaming de la API de Groq."""
+    system_message = messages[0]
+    history = messages[1:]
+    
+    char_count = 0
+    selected_history: list[dict[str, str]] = []
+
+    for message in reversed(history):
+        message_len = len(message.get("content", ""))
+        if char_count + message_len > max_chars:
+            break
+        selected_history.append(message)
+        char_count += message_len
+    
+    # Revertir para mantener el orden cronológico
+    final_history = list(reversed(selected_history))
+    
+    # Convertir a ChatCompletionMessageParam para compatibilidad con la API
+    # Esta conversión asume que los roles y contenidos son correctos.
+    final_messages: list[ChatCompletionMessageParam] = [
+        {"role": m["role"], "content": m["content"]} # type: ignore
+        for m in [system_message] + final_history
+    ]
+    
+    return final_messages
+
+
+def get_groq_response(
+    client: Groq, messages: list[dict[str, str]]
+) -> Generator[str, None, None]:
+    """
+    Obtiene una respuesta en streaming de la API de Groq.
+
+    Args:
+        client: El cliente de la API de Groq.
+        messages: La lista de mensajes de la conversación.
+
+    Yields:
+        str: Fragmentos de la respuesta del modelo.
+    """
     try:
         messages_to_send = build_messages_with_limit(
             messages, settings.messages_max_chars
         )
 
-        stream = client.chat.completions.create(
+        stream: Iterator[ChatCompletionChunk] = client.chat.completions.create(
             model=settings.groq_model_name,
-            messages=messages_to_send,  # type: ignore
-            temperature=0.3,
+            messages=messages_to_send,
+            temperature=settings.temperature,
             stream=True,
-            max_tokens=4096,
+            max_tokens=settings.max_tokens,
         )
-        final_response = yield from stream_handler(stream)
-        return final_response
+
+        for chunk in stream:
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
 
     except APIStatusError as e:
-        logger.error(f"Error de la API de Groq: {e.message}")
-        yield f"Error de la API de Groq: {e.message}"
-        return ""
+        error_message = f"Error de la API de Groq: {e.message}"
+        logger.error(error_message)
+        yield error_message
     except Exception as e:
-        logger.error(f"Error inesperado al llamar a la API: {e}")
-        yield f"Error inesperado: {e}"
-        return ""
+        error_message = f"Error inesperado al llamar a la API: {e}"
+        logger.error(error_message)
+        yield error_message

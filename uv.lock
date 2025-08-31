@@ -10,18 +10,14 @@ dependencies = [
     { name = "bcrypt" },
     { name = "groq" },
     { name = "httpx" },
+    { name = "mypy" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pypdf" },
     { name = "python-dotenv" },
     { name = "reportlab" },
-    { name = "streamlit" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
     { name = "ruff" },
+    { name = "streamlit" },
 ]
 
 [package.metadata]
@@ -29,19 +25,18 @@ requires-dist = [
     { name = "bcrypt", specifier = "==4.1.3" },
     { name = "groq", specifier = "==0.9.0" },
     { name = "httpx", specifier = "==0.27.0" },
+    { name = "mypy", specifier = ">=1.10" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "pypdf" },
     { name = "python-dotenv", specifier = "==1.0.1" },
     { name = "reportlab" },
-    { name = "streamlit", specifier = "==1.37.0" },
+    { name = "ruff", specifier = ">=0.5.0" },
+    { name = "streamlit", specifier = "==1.39.0" },
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.10" },
-    { name = "ruff", specifier = ">=0.5.0" },
-]
+dev = []
 
 [[package]]
 name = "altair"
@@ -967,7 +962,7 @@ wheels = [
 
 [[package]]
 name = "streamlit"
-version = "1.37.0"
+version = "1.39.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "altair" },
@@ -990,9 +985,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "watchdog", marker = "sys_platform != 'darwin'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/68/b1/3fd1ae1e313f819a9e57272bd820130dd38e43bcbe9846ceba89345d45a6/streamlit-1.37.0.tar.gz", hash = "sha256:463ef728ba21e74e05122e3704e8af644a7bdbb5822e281b8daf4a0a48761879", size = 8274522, upload-time = "2024-07-25T18:21:43.014Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d5/21/3740871ad79ee35f442f11bafec5010a3ec1916c7c9eb43ef866da641f31/streamlit-1.39.0.tar.gz", hash = "sha256:fef9de7983c4ee65c08e85607d7ffccb56b00482b1041fa62f90e4815d39df3a", size = 8360694, upload-time = "2024-10-01T17:36:42.057Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/61/2033dc31dcd460aa22bee7a20d29c1a4d9538c71d5c0c7986ad90162e0c9/streamlit-1.37.0-py2.py3-none-any.whl", hash = "sha256:d17e2d32b075a270a97f134ab5d22bbb98b4e474fa261ff49dc4a2b380386c84", size = 8651320, upload-time = "2024-07-25T18:21:39.629Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/e1/f9c479f9dbe0bb702ea5ca6608f10e91a708b438f7fb4572a2642718c6e3/streamlit-1.39.0-py2.py3-none-any.whl", hash = "sha256:a359fc54ed568b35b055ff1d453c320735539ad12e264365a36458aef55a5fba", size = 8741335, upload-time = "2024-10-01T17:36:39.25Z" },
 ]
 
 [[package]]

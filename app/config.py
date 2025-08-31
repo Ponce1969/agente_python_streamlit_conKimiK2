@@ -37,6 +37,12 @@ class Settings(BaseSettings):
         "moonshotai/kimi-k2-instruct",
         description="Nombre del modelo de Groq a utilizar.",
     )
+    temperature: float = Field(
+        0.3, description="Temperatura para la generación del modelo (creatividad)."
+    )
+    max_tokens: int = Field(
+        4096, description="Máximo de tokens a generar en la respuesta."
+    )
 
     # --- Configuración del Chat ---
     conversation_window_messages: int = Field(
@@ -70,5 +76,5 @@ class Settings(BaseSettings):
 
 
 # Instancia única para ser importada en otros módulos
-settings = Settings()
+settings = Settings()  # type: ignore
 

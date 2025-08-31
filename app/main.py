@@ -1,15 +1,36 @@
 # main.py
+"""Punto de entrada principal para la aplicación del Agente de IA.
+
+Este script inicializa la configuración, la base de datos, el estado de la sesión
+y la interfaz de usuario de Streamlit.
+"""
+
+from __future__ import annotations
+
+# 1. Importaciones de la biblioteca estándar
 import logging
+from typing import Any
 
+# 2. Importaciones de terceros
 import streamlit as st
-from groq import Groq
+from streamlit.errors import StreamlitAPIException
 
+# 3. Importaciones locales de la aplicación
 from app.config import settings
+from app.core.utils import SecurityUtils, get_client_ip, rate_limiter
+from app.db.persistence import (
+    init_db,
+    purge_old_login_attempts,
+    purge_old_messages,
+)
+from app.llm.llm_handler import get_groq_client
+from app.styles import load_css
+from app.ui.components import render_chat_interface, render_sidebar
 
 # ------------------------------------------------------------------
 # 0. Configuración del Logging
 # ------------------------------------------------------------------
-def setup_logging():
+def setup_logging() -> None:
     """Configura el logging para toda la aplicación."""
     logging.basicConfig(
         level=logging.INFO,
@@ -18,20 +39,11 @@ def setup_logging():
     )
 
 
-# Módulos locales
-from app.db.persistence import init_db, purge_old_messages, purge_old_login_attempts
-from app.styles import load_css
-from app.llm.llm_handler import get_groq_client
-from app.ui.components import render_chat_interface, render_sidebar
-from app.core.utils import SecurityUtils, get_client_ip, rate_limiter
-
 # ------------------------------------------------------------------
 # 1. Configuración de la página
 # ------------------------------------------------------------------
 # Logger del módulo
 logger = logging.getLogger(__name__)
-
-from streamlit.errors import StreamlitAPIException
 
 try:
     st.set_page_config(
@@ -41,9 +53,8 @@ try:
         initial_sidebar_state="expanded",
     )
 except StreamlitAPIException as e:
-    logger.error(f"Error al configurar la página de Streamlit: {e}")
+    logger.error("Error al configurar la página de Streamlit: %s", e)
     # Continuar es seguro, pero la configuración de la página puede no aplicarse.
-
 
 
 # ------------------------------------------------------------------
@@ -54,7 +65,7 @@ def initialize_session_state() -> None:
     if "client_ip" not in st.session_state:
         st.session_state.client_ip = get_client_ip()
 
-    defaults = {
+    defaults: dict[str, Any] = {
         "auth": False,
         "messages": [],
         "thread_id": None,
@@ -68,7 +79,7 @@ def initialize_session_state() -> None:
         "chunk_by_tokens": False,
         "auto_advance_chunks": False,
     }
-    
+
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
@@ -87,7 +98,7 @@ def initialize_session_state() -> None:
 # ------------------------------------------------------------------
 def handle_authentication() -> bool:
     """Maneja la autenticación del usuario."""
-    client_ip = st.session_state.client_ip
+    client_ip: str = st.session_state.client_ip
 
     if st.session_state.get("auth", False):
         return True
@@ -97,11 +108,13 @@ def handle_authentication() -> bool:
         return False
 
     st.warning("Por favor, introduce la contraseña para continuar.")
-    password = st.text_input("Contraseña:", type="password")
+    password: str | None = st.text_input("Contraseña:", type="password")
 
     if st.button("Iniciar sesión"):
         # Verificar la contraseña solo si se ingresa algo
-        if password and SecurityUtils.verify_password(password, settings.master_password_hash):
+        if password and SecurityUtils.verify_password(
+            password, settings.master_password_hash
+        ):
             st.session_state.auth = True
             st.rerun()
         else:
@@ -110,7 +123,7 @@ def handle_authentication() -> bool:
             st.error("Contraseña incorrecta.")
             # No hacer rerun aquí para que el mensaje de error permanezca visible
 
-    return st.session_state.get("auth", False)
+    return bool(st.session_state.get("auth", False))
 
 
 # ------------------------------------------------------------------
@@ -136,10 +149,14 @@ if __name__ == "__main__":
         init_db(settings.db_path)
         # Purga de datos de mantenimiento
         purge_old_messages(days=settings.purge_db_days)
-        purge_old_login_attempts(days=7)  # Limpia logs de intentos de login antiguos
+        purge_old_login_attempts(
+            days=7
+        )  # Limpia logs de intentos de login antiguos
     except Exception as e:
-        logger.critical(f"No se pudo inicializar o purgar la base de datos: {e}")
+        logger.critical("No se pudo inicializar o purgar la base de datos: %s", e)
         # Dependiendo de la criticidad, podrías querer salir o mostrar un error
-        st.error(f"Error crítico de la base de datos: {e}. La aplicación puede no funcionar.")
+        st.error(
+            f"Error crítico de la base de datos: {e}. La aplicación puede no funcionar."
+        )
 
     main()

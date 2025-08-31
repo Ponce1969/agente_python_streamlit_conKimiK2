@@ -8,7 +8,7 @@ from functools import lru_cache
 
 import bcrypt
 import streamlit as st
-from streamlit.web.server.server import Server
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 from app.db.persistence import count_recent_login_attempts, record_login_attempt
 
@@ -25,13 +25,15 @@ class SecurityUtils:
         """Genera un hash de la contraseña usando bcrypt."""
         salt = bcrypt.gensalt()
         hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
-        return hashed.decode("utf-8")  # type: ignore
+        return hashed.decode("utf-8")
 
     @staticmethod
     def is_password_valid(password: str, hashed_password: str) -> bool:
         """Verifica si una contraseña coincide con su hash."""
         try:
-            return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))  # type: ignore
+            return bcrypt.checkpw(
+                password.encode("utf-8"), hashed_password.encode("utf-8")
+            )
         except (ValueError, TypeError):
             return False
 
@@ -58,15 +60,15 @@ class RateLimiter:
         """Verifica si un intento está permitido consultando la base de datos."""
         if not identifier or identifier == "unknown":
             return True  # No limitar si no hay identificador
-        
+
         recent_attempts = count_recent_login_attempts(identifier, self.window_minutes)
         return recent_attempts < self.max_attempts
 
     def record_attempt(self, identifier: str) -> None:
         """Registra un intento de login en la base de datos."""
         if not identifier or identifier == "unknown":
-            return # No registrar si no hay identificador
-        
+            return  # No registrar si no hay identificador
+
         record_login_attempt(identifier)
 
 
@@ -75,13 +77,16 @@ rate_limiter = RateLimiter()
 
 
 def get_client_ip() -> str:
-    """Obtiene la IP del cliente de las cabeceras de la solicitud."""
+    """Obtiene la IP del cliente de la conexión actual."""
     try:
-        server = Server.get_current()
-        session_info = server._get_session_info(server.get_current_session_id())
-        if session_info and hasattr(session_info, 'ws') and session_info.ws:
-            # Acceso a través del websocket
-            return session_info.ws.request.remote_ip
+        ctx = get_script_run_ctx()
+        if ctx is None:
+            return "unknown"
+
+        session_info = st.runtime.get_instance()._get_session_info(ctx.session_id) # type: ignore
+        if session_info and hasattr(session_info, "ws") and session_info.ws:
+            return str(session_info.ws.request.remote_ip)
+
     except Exception as e:
         logger.warning(f"No se pudo obtener la IP del cliente: {e}")
 

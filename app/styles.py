@@ -1,13 +1,14 @@
 # styles.py
 import streamlit as st
 
+
 def load_css() -> None:
     """
     Carga una hoja de estilos CSS optimizada y adaptable a los temas de Streamlit.
     Utiliza variables de tema de Streamlit para asegurar la consistencia
     entre los modos claro y oscuro.
     """
-    css = """
+    css = """ 
     <style>
         /* --- ESTILOS GENERALES Y RESET --- */
 
@@ -48,8 +49,10 @@ def load_css() -> None:
 
         /* Mensaje del asistente */
         [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
-            /* Un color ligeramente distinto para el asistente, derivado del fondo secundario */
-            background-color: color-mix(in srgb, var(--secondary-background-color), var(--primary-color) 4%);
+            /* Un color ligeramente distinto para el asistente */
+            background-color: color-mix(
+                in srgb, var(--secondary-background-color), var(--primary-color) 4%
+            );
             margin-left: 2.5rem;
             border-color: color-mix(in srgb, var(--primary-color), transparent 85%);
         }
@@ -57,7 +60,9 @@ def load_css() -> None:
         /* Bloques de código dentro de los mensajes */
         [data-testid="stChatMessage"] code {
             color: var(--text-color);
-            background-color: color-mix(in srgb, var(--secondary-background-color), var(--text-color) 5%);
+            background-color: color-mix(
+                in srgb, var(--secondary-background-color), var(--text-color) 5%
+            );
             border: 1px solid color-mix(in srgb, var(--text-color), transparent 90%);
             padding: 0.125rem 0.375rem;
             border-radius: 0.375rem;

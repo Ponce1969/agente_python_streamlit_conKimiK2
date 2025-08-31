@@ -83,9 +83,9 @@ def get_client_ip() -> str:
         if ctx is None:
             return "unknown"
 
-        session_info = st.runtime.get_instance()._get_session_info(ctx.session_id) # type: ignore
-        if session_info and hasattr(session_info, "ws") and session_info.ws:
-            return str(session_info.ws.request.remote_ip)
+        # Devolvemos el ID de sesión como un identificador único.
+        # Acceder a la IP real del cliente en Streamlit es complejo y usa APIs internas inestables.
+        return str(ctx.session_id)
 
     except Exception as e:
         logger.warning(f"No se pudo obtener la IP del cliente: {e}")
@@ -120,7 +120,6 @@ def chunk_text(text: str, chunk_size: int) -> list[str]:
         chunks.append(text[i:end])
         i = end
     return chunks
-
 
 def estimate_tokens(text: str) -> int:
     """Estimación simple de tokens (~4 chars/token)."""

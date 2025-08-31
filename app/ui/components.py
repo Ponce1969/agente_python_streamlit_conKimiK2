@@ -313,7 +313,16 @@ def _display_diagnostics(diagnostics: List[Diagnostic]):
         with st.container(border=True):
             line_info = f"Línea: {diag.line}" if diag.line else "General"
             code_info = f"`{diag.code}`" if diag.code else ""
-            st.markdown(f"**{diag.tool}**: {code_info} ({line_info})")
+            
+            tool_color = "#E69138"  # Naranja para Ruff (default)
+            if diag.tool == "MyPy":
+                tool_color = "#4A90E2"  # Azul para MyPy
+
+            st.markdown(
+                f"""<span style='color: {tool_color}; font-weight: bold;'>{diag.tool}</span> 
+                **{code_info}** ({line_info})""",
+                unsafe_allow_html=True,
+            )
             st.markdown(f"> {diag.message}")
             if diag.tool == "Ruff" and diag.code:
                 url = f"https://docs.astral.sh/ruff/rules/{diag.code.lower()}/"
@@ -325,7 +334,7 @@ def _render_code_actions(content: str, msg_index: int) -> None:
     run_command_match = re.search(r"<run_command>(.*?)</run_command>", content, re.DOTALL)
     run_command = run_command_match.group(1).strip() if run_command_match else None
 
-    code_blocks = re.findall(r"```(python)?\n?(.*?)```", content, re.DOTALL)
+    code_blocks = re.findall(r"```(python)?\n?(.*?)""", content, re.DOTALL)
     if not code_blocks:
         return
 

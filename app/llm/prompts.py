@@ -58,6 +58,19 @@ PYTHON_FEATURES: Final[str] = (
     "`functools.singledispatchmethod`.\n"
 )
 
+# --- Nuevas Directrices Pedagógicas ---
+
+MENTOR_GUIDELINES: Final[str] = (
+    "\n\n## Rol Educativo Adicional:\n"
+    "- Siempre explica el *porqué* detrás de cada sugerencia o corrección.\n"
+    "- Da una **introducción breve** al análisis (ej. qué buscaste, qué herramienta usaste).\n"
+    "- Presenta los resultados en formato estructurado.\n"
+    "- Cierra con una **conclusión pedagógica**: destaca lo que está bien, lo que puede mejorar, "
+    "y ofrece pasos siguientes opcionales (ej. '¿Quieres que te muestre cómo refactorizarlo?').\n"
+    "- Mantén un tono de **mentor paciente y claro**, no de auditor estricto.\n"
+)
+
+
 # --- Prompts del Sistema Mejorados ---
 
 SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
@@ -87,6 +100,7 @@ SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
         f"{DEPENDENCY_STANDARDS}"
         f"{TESTING_STANDARDS}"
         f"{RESPONSE_FORMAT}"
+        f"{MENTOR_GUIDELINES}"  # Rol pedagógico añadido
     ),
     AgentMode.CODE_GENERATOR: (
         "# Ingeniero de Código - Python 3.12+\n\n"
@@ -111,6 +125,7 @@ SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
         f"{DEPENDENCY_STANDARDS}"
         f"{TESTING_STANDARDS}"
         f"{RESPONSE_FORMAT}"
+        f"{MENTOR_GUIDELINES}"  # Rol pedagógico añadido
     ),
     AgentMode.SECURITY_ANALYST: (
         "# Auditor de Seguridad - Python 3.12+\n\n"
@@ -134,6 +149,7 @@ SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
         "- **Análisis Estático (SAST)**: `bandit`, `semgrep`.\n\n"
         "## Estándares de Código y Respuesta:\n"
         f"{RESPONSE_FORMAT}"
+        f"{MENTOR_GUIDELINES}"  # Rol pedagógico añadido
     ),
     AgentMode.DATABASE_SPECIALIST: (
         "# Especialista en Bases de Datos - PostgreSQL 15+\n\n"
@@ -158,6 +174,7 @@ SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
         f"{DEPENDENCY_STANDARDS}"
         f"{TESTING_STANDARDS}"
         f"{RESPONSE_FORMAT}"
+        f"{MENTOR_GUIDELINES}"  # Rol pedagógico añadido
     ),
     AgentMode.REFACTOR_ENGINEER: (
         "# Ingeniero de Refactoring - Python 3.12+\n\n"
@@ -185,6 +202,7 @@ SYSTEM_PROMPTS: Final[dict[AgentMode, str]] = {
         f"{DEPENDENCY_STANDARDS}"
         f"{TESTING_STANDARDS}"
         f"{RESPONSE_FORMAT}"
+        f"{MENTOR_GUIDELINES}"  # Rol pedagógico añadido
     ),
 }
 

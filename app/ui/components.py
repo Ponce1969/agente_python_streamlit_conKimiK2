@@ -6,7 +6,7 @@ Módulo para componentes de la interfaz de usuario de Streamlit.
 
 import re
 from datetime import date, datetime
-from typing import Any
+from typing import Any, List
 
 import streamlit as st
 from groq import APIStatusError, Groq
@@ -14,6 +14,7 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 from app.config import settings
 from app.core import code_tools
+from app.core.code_tools import Diagnostic
 from app.core.export import export_md, export_pdf
 from app.core.file_handler import process_uploaded_file
 from app.core.utils import chunk_text
@@ -300,6 +301,25 @@ def _prepare_chat_messages(window_size: int) -> None:
         st.session_state.messages[0] = {"role": "system", "content": system_prompt}
 
 
+def _display_diagnostics(diagnostics: List[Diagnostic]):
+    """Muestra una lista de diagnósticos de forma estructurada y amigable."""
+    if not diagnostics:
+        st.success("✅ ¡Excelente! No se encontraron problemas.")
+        return
+
+    st.warning(f"Se encontraron {len(diagnostics)} problemas:")
+
+    for diag in diagnostics:
+        with st.container(border=True):
+            line_info = f"Línea: {diag.line}" if diag.line else "General"
+            code_info = f"`{diag.code}`" if diag.code else ""
+            st.markdown(f"**{diag.tool}**: {code_info} ({line_info})")
+            st.markdown(f"> {diag.message}")
+            if diag.tool == "Ruff" and diag.code:
+                url = f"https://docs.astral.sh/ruff/rules/{diag.code.lower()}/"
+                st.link_button("Ver documentación de la regla", url)
+
+
 def _render_code_actions(content: str, msg_index: int) -> None:
     """Renderiza botones de acción para bloques de código en un mensaje."""
     run_command_match = re.search(r"<run_command>(.*?)</run_command>", content, re.DOTALL)
@@ -334,25 +354,27 @@ def _render_code_actions(content: str, msg_index: int) -> None:
         st.rerun()
 
     if c3.button("Validar (Ruff)", key=f"ruff_chk_{msg_index}", use_container_width=True):
-        ruff_output, _ = code_tools.run_ruff_check(code_to_analyze)
-        st.session_state[analysis_key] = ("Análisis de Ruff", ruff_output)
+        diagnostics, _ = code_tools.run_ruff_check(code_to_analyze)
+        st.session_state[analysis_key] = ("Análisis de Ruff", diagnostics)
         st.rerun()
 
     if c4.button("Validar (MyPy)", key=f"mypy_chk_{msg_index}", use_container_width=True):
-        mypy_output, _ = code_tools.run_mypy_check(code_to_analyze)
-        st.session_state[analysis_key] = ("Análisis de MyPy", mypy_output)
+        diagnostics, _ = code_tools.run_mypy_check(code_to_analyze)
+        st.session_state[analysis_key] = ("Análisis de MyPy", diagnostics)
         st.rerun()
 
     if analysis_key in st.session_state:
-        title, output = st.session_state.pop(analysis_key)
+        title, result = st.session_state.pop(analysis_key)
         with st.expander(f"Resultado: {title}", expanded=True):
-            output_lang = "python" if title == "Código Formateado" else "bash"
-            st.code(output, language=output_lang, line_numbers=True)
+            if isinstance(result, list) and all(isinstance(d, Diagnostic) for d in result):
+                _display_diagnostics(result)
+            elif isinstance(result, str):
+                output_lang = 'python' if title == "Código Formateado" else 'bash'
+                st.code(result, language=output_lang, line_numbers=True)
 
 
 def _display_chat_messages(display_window: int) -> None:
     """Muestra los mensajes del historial de chat."""
-    # Omitir el mensaje de sistema en la visualización
     messages_to_render = st.session_state.get("messages", [])[1:]
 
     if len(messages_to_render) > display_window:
@@ -363,7 +385,6 @@ def _display_chat_messages(display_window: int) -> None:
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
             if msg["role"] == "assistant":
-                # Usar un índice único y estable para las acciones
                 _render_code_actions(msg["content"], msg_index=i)
 
 def render_chat_interface() -> None:

@@ -2,126 +2,115 @@
 
 Este documento describe el estado actual del proyecto y la hoja de ruta para sus futuras versiones, transformándolo en un producto de nivel profesional.
 
----
+Diagrama de flujo de la UI del Agente Python
 
-## 🏆 Puntos Fuertes Destacados
+-┌───────────────────────────────┐
+│      render_chat_interface     │
+│  (orquesta todo el flujo UI)  │
+└───────────────┬───────────────┘
+                │
+                ▼
+      ┌─────────────────────┐
+      │ _prepare_chat_msgs  │
+      │ - Construye prompt  │
+      │ - Carga mensajes    │
+      │   iniciales en      │
+      │   session_state     │
+      └─────────┬───────────┘
+                │
+                ▼
+      ┌─────────────────────┐
+      │ _display_chat_msgs  │
+      │ - Recorre session_state.messages
+      │ - Muestra mensajes
+      │ - Llama a _render_code_actions
+      └─────────┬───────────┘
+                │
+                ▼
+  ┌─────────────────────────────┐
+  │ _render_code_actions        │
+  │ - Extrae bloques de código │
+  │ - Detecta <run_command>    │
+  │ - Botones: Ejecutar,       │
+  │   Ruff Formato/Check,      │
+  │   MyPy Check               │
+  │ - Actualiza session_state  │
+  └─────────┬──────────────────┘
+            │
+            ▼
+┌─────────────────────────────┐
+│ _handle_chat_input          │
+│ - Detecta input del usuario │
+│ - Agrega mensaje a session_state.messages
+│ - Llama a get_groq_response │
+│ - Stream de respuesta       │
+│ - Actualiza session_state.messages
+└─────────────────────────────┘
 
-El proyecto actual es un ejemplo de una herramienta de IA bien ejecutada, que va más allá de un simple chatbot para convertirse en un IDE inteligente.
+Notas sobre la arquitectura
 
-### 1. Visión Clara y Ejecución Impecable
+st.session_state es el eje central
 
--   **✅ Problema real resuelto**: No es solo un wrapper de API, sino un asistente que entiende el ciclo completo de desarrollo.
--   **✅ Flujo natural**: El ciclo `Generar → Analizar → Ejecutar → Iterar → Aplicar cambios` es intuitivo y potente.
--   **✅ Seguridad primero**: La confirmación explícita del usuario es requerida antes de cualquier modificación de archivos.
+Mantiene historial de mensajes (messages), chunks de archivo (file_chunks), índice actual (file_chunk_index) y resultados de análisis de código.
 
-### 2. Arquitectura de Alto Nivel
+Cada función lee o actualiza este estado, garantizando persistencia entre interacciones de Streamlit.
 
--   **✅ Modularidad perfecta**: Clara separación de responsabilidades (UI, LLM, Core, DB).
--   **✅ Configuración centralizada**: Uso de Pydantic-settings para una gestión de la configuración limpia.
--   **✅ Persistencia inteligente**: Historial completo de conversaciones en una base de datos SQLite.
--   **✅ Dockerización completa**: Asegura la reproducibilidad del entorno de desarrollo y producción.
+Flujo de datos
 
-### 3. UX/UI Superior
+_prepare_chat_msgs → Inicializa mensajes.
 
--   **✅ Multi-modalidad**: Especialistas reales (Arquitecto, Ingeniero de Código) en lugar de prompts genéricos.
--   **✅ Feedback inmediato**: Análisis de código en tiempo real con `ruff` y `mypy`.
--   **✅ Contexto persistente**: Capacidad de analizar archivos y mantener el contexto de la conversación.
--   **✅ Exportación flexible**: El historial se puede exportar a Markdown y PDF.
+_display_chat_msgs → Renderiza mensajes y llama a _render_code_actions.
 
----
+_render_code_actions → Analiza código y actualiza resultados en session_state.
 
-## 🚀 Mejoras Potenciales (Ordenadas por Impacto)
+_handle_chat_input → Procesa input de usuario, llama al LLM, agrega respuesta al historial.
 
-### 🔥 Alto Impacto - Features Premium
+Extensibilidad
 
-1.  **Integración Nativa con Git**
-    -   *Descripción*: Darle al agente la capacidad de interactuar con el repositorio Git, creando ramas, haciendo commits y mostrando diferencias.
-    -   *Ejemplo de implementación*:
-        ```python
-        # app/core/git_handler.py
-        class GitManager:
-            def create_branch(self, feature_name: str) -> str:
-                """Crea una rama para nuevos features."""
-            
-            def stage_and_commit(self, message: str, files: list[str]) -> bool:
-                """Hace commit de los cambios propuestos."""
-            
-            def show_diff(self, file_path: str) -> str:
-                """Muestra el diff antes de aplicar los cambios."""
-        ```
+Cada bloque de la UI puede extenderse (nuevas herramientas de análisis, comandos especiales, chunks de archivo).
 
-2.  **Testing Automatizado**
-    -   *Descripción*: Permitir que el agente no solo ejecute tests, sino que también los genere para el código que produce.
-    -   *Ejemplo de implementación*:
-        ```python
-        # app/core/test_runner.py
-        class TestRunner:
-            def run_tests(self, test_path: str) -> TestResult:
-                """Ejecuta tests automáticamente después de los cambios."""
-            
-            def generate_tests(self, code: str) -> str:
-                """Genera tests de pytest usando Hypothesis."""
-        ```
+Separación clara UI ↔ lógica ↔ estado.
 
-### ⚡ Medio Impacto - Mejoras de UX
 
-1.  **Workflow de Code Review**
-    -   *Descripción*: Implementar un modo "revisor" donde el agente pueda hacer comentarios y sugerencias sobre el código, simulando un pair programming.
+Visión del Proyecto
 
-2.  **Templates Inteligentes de Proyecto**
-    -   *Descripción*: Capacidad de generar no solo un archivo, sino una estructura completa de proyecto a partir de plantillas.
-    -   *Ejemplo de implementación*:
-        ```python
-        # app/core/templates.py
-        PROJECT_TEMPLATES = {
-            "fastapi_clean_arch": "Plantilla completa con estructura hexagonal",
-            "cli_tool": "Script CLI con Typer y Rich",
-        }
-        ```
+Este repositorio implementa un asistente de programación en Python + Streamlit, con persistencia en SQLite.
+El objetivo principal es aprender y practicar Python de forma profesional, usando tipado fuerte, buenas prácticas, herramientas de análisis estático y un entorno interactivo.
 
-3.  **Profiling de Performance**
-    -   *Descripción*: Añadir herramientas para analizar el rendimiento y el uso de memoria del código generado.
-    -   *Ejemplo de implementación*:
-        ```python
-        # app/core/profiler.py
-        class CodeProfiler:
-            def profile_function(self, code: str) -> dict:
-                """Analiza el rendimiento con cProfile y line_profiler."""
-            
-            def memory_analysis(self, code: str) -> dict:
-                """Realiza un análisis de uso de memoria con tracemalloc."""
-        ```
+⚠️ Importante:
+El asistente no actúa como reemplazo del programador, sino como ayudante que:
 
-### 💎 Pequeños Detalles que Marcan la Diferencia
+Explica conceptos.
 
-1.  **Integración con IDEs**: Desarrollar una extensión para VS Code o un plugin para JetBrains para una integración nativa.
-2.  **CLI Tool**: Crear una herramienta de línea de comandos para interactuar con el agente desde la terminal.
-3.  **Métricas y Analíticas**: Añadir un sistema de tracking para monitorizar las tasas de éxito, los patrones más populares y el tiempo medio de resolución.
+Sugiere mejoras.
 
----
+Revisa la calidad del código.
 
-## 🎯 Roadmap Sugerido
+Ayuda a practicar con ejemplos claros.
 
-### Fase 1: Consolidación
+Próximos Pasos
 
--   [ ] **Git Integration**: Implementar la capacidad de crear ramas y hacer commits.
--   [ ] **Testing Automatizado**: Añadir la generación y ejecución de tests básicos.
--   [ ] **Manejo de Errores Mejorado**: Implementar reintentos con backoff exponencial para las llamadas a la API.
+1. Reforzar la idea de ayudante, no actor.
+2. Reescribir wrappers de Mypy y Ruff para integrarlos con el,
+   sistema de salud.
+3. Incorporar ejemplos de refactorización en vivo (antes/después).
+4. Mini-retos de Python dentro del asistente (ej.: tipar una, 
+   función, usar async).
+5. Posibilidad de adjuntar notas personales o explicaciones dentro, 
+   de la sesion .
+6. Extenciones , Soporte para análisis de proyectos enteros  ,
+   no solo archivos sueltos.
 
-### Fase 2: Escalabilidad
 
--   [ ] **Sistema de Plugins**: Permitir añadir nuevos modos y herramientas de forma dinámica.
--   [ ] **Caché Inteligente**: Implementar un sistema de caché para respuestas comunes y reducir la latencia.
--   [ ] **Colaboración en Equipo**: Añadir funcionalidades para que varios usuarios puedan trabajar en un mismo contexto.
+📖 Filosofía
 
-### Fase 3: Ecosistema
+El proyecto es un espacio de práctica personal.
+Aquí la prioridad es:
 
--   [ ] **Marketplace de Templates**: Crear un lugar para compartir y usar plantillas de proyectos.
--   [ ] **API REST**: Exponer las funcionalidades del agente a través de una API para integraciones externas.
--   [ ] **Versión Cloud**: Desarrollar una versión SaaS del producto.
+Aprender.
 
----
+Escribir código profesional.
 
-## 🏅 Conclusión
+Usar buenas prácticas modernas (tipado, testeo, análisis estático).
 
-Este proyecto tiene un potencial enorme, resolviendo un problema real para los desarrolladores con una implementación tecnológica moderna y una UX superior a muchas herramientas comerciales. El camino a seguir es claro y prometedor.
+Iterar paso a paso, sin perder de vista que el protagonista es el programador.
